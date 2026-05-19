@@ -140,7 +140,7 @@ const modelColorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
 d3.csv("master_results.csv").then(rawData => {
     
-    // Parse numeric fields securely
+    // Parse numeric fields
     rawData.forEach(d => {
         d["GR-EN"] = +d["GR-EN"]; 
         d["EN-GR"] = +d["EN-GR"];
@@ -257,7 +257,6 @@ d3.csv("master_results.csv").then(rawData => {
         const x = d3.scaleLinear().domain([-paddedMax, paddedMax]).rangeRound([0, width]);
         const y = d3.scaleBand().domain(normalizedData.map(d => d.quant)).rangeRound([0, chartHeight]).padding(0.2);
 
-        // TOP-LEFT LEGEND
         const legendGroup = svg.append("g").attr("transform", `translate(-150, -90)`);
         allKeys.forEach((key, i) => {
             const col = i % 2; 
@@ -267,7 +266,6 @@ d3.csv("master_results.csv").then(rawData => {
             item.append("text").attr("x", 18).attr("y", 10).style("font-size", "10px").style("fill", "#444").text(metricNames[key]); 
         });
 
-        // SPLIT HEADER
         svg.append("text").attr("x", x(0) - 10).attr("y", -25).attr("text-anchor", "end").style("font-size", "11px").style("font-weight", "bold").style("fill", "#444").text("← Costs & Overhead (Resources & Compute Time)");
         svg.append("text").attr("x", x(0)).attr("y", -25).attr("text-anchor", "middle").style("font-size", "11px").style("font-weight", "bold").style("fill", "#bbb").text("|");
         svg.append("text").attr("x", x(0) + 10).attr("y", -25).attr("text-anchor", "start").style("font-size", "11px").style("font-weight", "bold").style("fill", "#444").text("Translation Quality (COMET Scores) →");
@@ -372,8 +370,6 @@ d3.csv("master_results.csv").then(rawData => {
         svg.append("text").attr("text-anchor", "middle").attr("x", scatterWidth / 2).attr("y", chartHeight + 40).text(metricNames[xMetric]);
         svg.append("text").attr("text-anchor", "middle").attr("transform", "rotate(-90)").attr("y", -45).attr("x", -chartHeight / 2).text(metricNames[yMetric]);
 
-        // --- NEW: INITIALIZE IN-CHART TECHNIQUE LABEL ---
-        // Places an empty text placeholder inside the top right corner of the plot arena
         const internalTitle = svg.append("text")
             .attr("x", scatterWidth / 2)
             .attr("y", -15)
@@ -381,9 +377,7 @@ d3.csv("master_results.csv").then(rawData => {
             .style("font-size", "12px")
             .style("font-weight", "bold")
             .style("fill", "#2980b9");
-        // ------------------------------------------------
 
-        // Draw the dots
         svg.append('g').selectAll("dot").data(aggregatedData).enter().append("circle")
             .attr("class", "scatter-dot")
             .attr("cx", d => x(d[xMetric])).attr("cy", d => y(d[yMetric]))
@@ -392,7 +386,7 @@ d3.csv("master_results.csv").then(rawData => {
             .style("opacity", 0.75)
             .style("stroke", "white").style("stroke-width", 1)
             .on("mouseover", function(event, d) {
-                // Show tooltip
+
                 tooltip.style("opacity", 1).html(`
                     <b>Model:</b> ${d.model}<br>
                     <b>Quant:</b> ${d.quant}<hr style="margin:4px 0; border:0; border-top:1px solid #555;">
@@ -400,10 +394,9 @@ d3.csv("master_results.csv").then(rawData => {
                     <b>${metricNames[yMetric]}:</b> ${d[yMetric].toFixed(4)}
                 `).style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 40) + "px");
 
-                // UPDATE IN-CHART SVG LABEL
+
                 internalTitle.text(`Quantization Technique: ${d.quant}`);
 
-                // Highlight matching quantization techniques, fade out the rest
                 svg.selectAll(".scatter-dot")
                     .transition().duration(200)
                     .style("opacity", dotData => dotData.quant === d.quant ? 1 : 0.15)
@@ -412,13 +405,12 @@ d3.csv("master_results.csv").then(rawData => {
                     .style("stroke-width", dotData => dotData.quant === d.quant ? 2 : 1);
             })
             .on("mouseout", function() {
-                // Hide tooltip
+
                 tooltip.style("opacity", 0);
 
-                // RESET IN-CHART SVG LABEL
                 internalTitle.text("");
 
-                // Restore all dots back to normal
+
                 svg.selectAll(".scatter-dot")
                     .transition().duration(200)
                     .style("opacity", 0.75)
