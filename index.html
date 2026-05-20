@@ -208,7 +208,13 @@ d3.csv("master_results.csv").then(rawData => {
         d3.select("#title-model-1").text(selectedModel);
 
         const maxes = {};
-        allKeys.forEach(key => { maxes[key] = d3.max(chartData, d => d[key]) || 1; });
+        allKeys.forEach(key => { 
+            if (positives.includes(key)) {
+                maxes[key] = 1; 
+            } else {
+                maxes[key] = d3.max(chartData, d => d[key]) || 1; 
+            }
+        });
 
         const normalizedData = chartData.map(d => {
             let obj = { quant: d.quant, raw: d }; 
