@@ -95,9 +95,9 @@ Llama Krikri 8B,4bit True GPTQ,3,0.8711,0.8956,0.8834,6.5958,8.6551,5.97,5.8
 Llama Krikri 8B,4bit Optimized GPTQ,1,0.8828,0.9105,0.8966,7.1254,8.5219,5.19,5.8
 Llama Krikri 8B,4bit Optimized GPTQ,2,0.8787,0.9008,0.8897,7.2518,9.0621,5.82,5.8
 Llama Krikri 8B,4bit Optimized GPTQ,3,0.877,0.8948,0.8859,6.771,8.3372,5.85,5.8
-Llama Krikri 8B,Int2 Batch16,1,0.5679,0.5121,0.54,15.5245,6.7609,5.27,5.95
-Llama Krikri 8B,Int2 Batch16,2,0.5613,0.5124,0.5369,13.7463,7.0345,5.59,5.95
-Llama Krikri 8B,Int2 Batch16,3,0.567,0.5196,0.5433,15.255,8.3194,5.63,5.95
+Llama Krikri 8B,Int2 Batch16,1,0.6898,0.5411,0.6155,7.9641,6.334,6.99,4.82
+Llama Krikri 8B,Int2 Batch16,2,0.6647,0.5142,0.5895,7.0677,6.2298,7.61,4.82
+Llama Krikri 8B,Int2 Batch16,3,0.6592,0.5216,0.5904,8.0479,6.2715,7.64,4.82
 Llama Krikri 8B,Int4,1,0.8847,0.9074,0.8961,3.9814,4.8983,5.25,5.8
 Llama Krikri 8B,Int4,2,0.878,0.8984,0.8882,4.1696,5.1263,5.44,5.8
 Llama Krikri 8B,Int4,3,0.8756,0.8982,0.8869,3.9004,4.8156,5.45,5.8
@@ -119,18 +119,18 @@ Llama Krikri 8B,4bit Omniquant,3,0.8784,0.8954,0.8869,3.8226,4.711,5.39,5.76
 Llama Krikri 8B,4bit Spinquant,1,0.6211,0.6793,0.6502,10.9645,13.7581,5.88,10.76
 Llama Krikri 8B,4bit Spinquant,2,0.6268,0.6535,0.6401,10.559,13.3679,6.12,10.76
 Llama Krikri 8B,4bit Spinquant,3,0.6262,0.6513,0.6388,10.2666,13.4291,6.14,10.76
-Llama Krikri 8B,2bit 1% Spqr,1,0.3357,0.2938,0.3147,22.7637,13.3141,6.44,4.58
-Llama Krikri 8B,2bit 1% Spqr,2,0.3426,0.2563,0.2994,21.8087,13.697,7.14,4.58
-Llama Krikri 8B,2bit 1% Spqr,3,0.3439,0.3217,0.3328,19.6973,11.8907,7.19,4.58
-Llama Krikri 8B,2bit 10% Fast Spqr,1,0.8668,0.8452,0.856,12.3066,10.5054,6.44,8.07
-Llama Krikri 8B,2bit 10% Fast Spqr,2,0.8612,0.8397,0.8504,13.5786,10.9464,5.87,8.07
-Llama Krikri 8B,2bit 10% Fast Spqr,3,0.8575,0.8491,0.8533,13.2224,10.2374,5.9,8.07
-Llama Krikri 8B,Analytical Network Manager,1,0.2807,0.256,0.2684,25.7847,16.8883,5.21,4.69
-Llama Krikri 8B,Analytical Network Manager,2,0.2714,0.2522,0.2618,23.3433,18.5543,5.92,4.69
-Llama Krikri 8B,Analytical Network Manager,3,0.2836,0.2517,0.2677,24.3266,19.5085,5.95,4.69
-Llama Krikri 8B,Empirical Network Manager,1,0.8794,0.8977,0.8885,6.5462,7.5064,5.27,5.6
-Llama Krikri 8B,Empirical Network Manager,2,0.8719,0.8883,0.8801,6.4943,7.6714,5.29,5.6
-Llama Krikri 8B,Empirical Network Manager,3,0.8689,0.879,0.8739,6.3422,7.2957,5.29,5.6
+Llama Krikri 8B,2bit 5% Spqr,1,0.6547,0.504,0.5794,13.3845,7.5935,6.44,6.13
+Llama Krikri 8B,2bit 5% Spqr,2,0.6204,0.4861,0.5533,13.2959,7.7328,6.14,6.13
+Llama Krikri 8B,2bit 5% Spqr,3,0.6423,0.4956,0.569,12.9837,7.9431,6.19,6.13
+Llama Krikri 8B,2bit 10% Fast Spqr,1,0.8616,0.8279,0.8447,9.0691,8.5039,5.53,8.07
+Llama Krikri 8B,2bit 10% Fast Spqr,2,0.8531,0.8201,0.8366,10.2181,8.8866,5.54,8.07
+Llama Krikri 8B,2bit 10% Fast Spqr,3,0.8525,0.8236,0.8381,8.994,8.4071,5.59,8.07
+Llama Krikri 8B,Analytical Net Mngr 4.5GB,1,0.3924,0.4204,0.4064,13.2029,13.5799,5.21,4.63
+Llama Krikri 8B,Analytical Net Mngr 4.5GB,2,0.4145,0.408,0.4113,11.3256,13.1838,5.92,4.63
+Llama Krikri 8B,Analytical Net Mngr 4.5GB,3,0.4014,0.4264,0.4139,13.4098,11.5978,5.95,4.63
+Llama Krikri 8B,Empirical Net Mngr 5.5GB,1,0.8794,0.8977,0.8885,6.5462,7.5064,5.27,5.6
+Llama Krikri 8B,Empirical Net Mngr 5.5GB,2,0.8719,0.8883,0.8801,6.4943,7.6714,5.29,5.6
+Llama Krikri 8B,Empirical Net Mngr 5.5GB,3,0.8689,0.879,0.8739,6.3422,7.2957,5.29,5.6
 Llama 3 8B,Fp4 AWQ,1,0.8644,0.8694,0.8669,10.0368,8.6614,5.29,5.44
 Llama 3 8B,Fp4 AWQ,2,0.8606,0.8498,0.8552,11.1317,9.6796,5.54,5.44
 Llama 3 8B,Fp4 AWQ,3,0.845,0.8516,0.8483,11.6174,8.6875,5.61,5.44
