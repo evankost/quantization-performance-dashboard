@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Γλωσσικές προκλήσεις ανά μέθοδο κβάντισης</title>
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --background: #f4f6f9;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #e1e6ee;
+      --accent: #3454d1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      padding: 30px 34px 23px;
+      color: #ffffff;
+      background: linear-gradient(120deg, #172033, #2b3a67);
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.75rem, 3vw, 2.3rem);
+    }
+
+    header p {
+      max-width: 900px;
+      margin: 0;
+      color: #d7def2;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1450px, calc(100% - 30px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .controls,
+    .summary,
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      box-shadow: 0 5px 18px rgba(20, 32, 60, 0.05);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 14px;
+      padding: 17px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 11px;
+      color: var(--text);
+      background: #ffffff;
+      border: 1px solid #ccd3df;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 1px;
+      margin: 16px 0;
+      overflow: hidden;
+      background: var(--border);
+    }
+
+    .stat {
+      padding: 15px 18px;
+      background: #ffffff;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 5px;
+      font-size: 1.4rem;
+      font-weight: 750;
+    }
+
+    .panel {
+      margin-bottom: 18px;
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 5px;
+      font-size: 1.12rem;
+    }
+
+    .panel p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .plot {
+      width: 100%;
+      min-height: 540px;
+    }
+
+    #category-plot {
+      min-height: 620px;
+    }
+
+    .note {
+      padding: 13px 15px;
+      color: #344054;
+      background: #eef2ff;
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .status {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      color: #7f1d1d;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+    }
+
+    code {
+      padding: 2px 5px;
+      background: #e8ecf4;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 1000px) {
+      .controls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      header {
+        padding: 24px 18px;
+      }
+
+      main {
+        width: min(100% - 18px, 1450px);
+        padding-top: 14px;
+      }
+
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        padding: 13px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Γλωσσικές προκλήσεις ανά μέθοδο κβάντισης</h1>
+  <p>
+    Σύγκριση πολλών μεθόδων για σπάνιες λέξεις, μεγάλες προτάσεις,
+    domains και topics.
+  </p>
+</header>
+
+<main>
+  <section class="controls">
+    <label>
+      Μοντέλο
+      <select id="model-select"></select>
+    </label>
+
+    <label>
+      Κατεύθυνση
+      <select id="direction-select">
+        <option value="EN-GR">EN→GR</option>
+        <option value="GR-EN">GR→EN</option>
+      </select>
+    </label>
+
+    <label>
+      Μετρική
+      <select id="metric-select">
+        <option value="COMET">COMET</option>
+        <option value="chrF">chrF++</option>
+      </select>
+    </label>
+
+    <label>
+      Κάτω γράφημα
+      <select id="category-select">
+        <option value="Domain">Domains</option>
+        <option value="Topic">Topics</option>
+      </select>
+    </label>
+
+    <label>
+      Ταξινόμηση μεθόδων
+      <select id="sort-select">
+        <option value="effect">Μεγαλύτερη πρόσθετη υποβάθμιση</option>
+        <option value="name">Όνομα μεθόδου</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="summary">
+    <div class="stat">
+      <div class="stat-label">Μέθοδοι</div>
+      <div class="stat-value" id="method-count">—</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Μεγαλύτερη πρόσθετη υποβάθμιση</div>
+      <div class="stat-value" id="strongest-challenge">—</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Κατηγορίες στο κάτω γράφημα</div>
+      <div class="stat-value" id="category-count">—</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Σπάνιες λέξεις και μεγάλες προτάσεις</h2>
+    <p>
+	Οι μέθοδοι ταξινομούνται με βάση τη μέση πρόσθετη υποβάθμιση στις σπάνιες λέξεις και στις μεγάλες προτάσεις. Το κόκκινο δείχνει μεγαλύτερη υποβάθμιση, το μπλε μικρότερη, ενώ τιμές κοντά στο 0 δείχνουν μικρή διαφορά από τις κανονικές προτάσεις.
+    </p>
+
+    <div id="challenge-heatmap" class="plot"></div>
+  </section>
+
+  <section class="panel">
+    <h2 id="category-title">Domains</h2>
+    <p id="category-description">
+      Κάθε τελεία είναι μία μέθοδος κβάντισης.
+      Η μαύρη γραμμή δείχνει τη διάμεση τιμή.
+    </p>
+
+    <div id="category-plot" class="plot"></div>
+  </section>
+
+  <div class="note">
+    Θετική τιμή σημαίνει ότι η συγκεκριμένη πρόκληση επηρεάστηκε περισσότερο
+    από τις κανονικές προτάσεις. Τιμή κοντά στο 0 σημαίνει ότι δεν υπάρχει
+    σημαντική πρόσθετη υποβάθμιση.
+  </div>
+
+  <div id="status" class="status"></div>
+</main>
+
+<script>
+  const FILES = {
+    challenges: "./challenge_specific_effects.csv",
+    categories: "./category_specific_effects.csv"
+  };
+
+  const CHALLENGES = [
+    "Has_Rare_Words",
+    "Is_Long_Sentence"
+  ];
+
+  const CHALLENGE_LABELS = {
+    Has_Rare_Words: "Σπάνιες λέξεις",
+    Is_Long_Sentence: "Μεγάλες προτάσεις"
+  };
+
+  const MIN_TOPIC_COUNT = 5;
+  const MAX_CATEGORIES = 12;
+
+  const modelSelect = document.getElementById("model-select");
+  const directionSelect = document.getElementById("direction-select");
+  const metricSelect = document.getElementById("metric-select");
+  const categorySelect = document.getElementById("category-select");
+  const sortSelect = document.getElementById("sort-select");
+  const statusBox = document.getElementById("status");
+
+  let challengeRows = [];
+  let categoryRows = [];
+
+  function number(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function format(value, signed = false) {
+    if (!Number.isFinite(value)) {
+      return "N/A";
+    }
+
+    const clean = Math.abs(value) < 0.0005 ? 0 : value;
+    const text = clean.toFixed(3).replace(/\.?0+$/, "");
+
+    return signed && clean > 0
+      ? `+${text}`
+      : text;
+  }
+
+  function unique(values) {
+    return [...new Set(values)]
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  function median(values) {
+    const sorted = values
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
+
+    if (!sorted.length) {
+      return null;
+    }
+
+    const middle = Math.floor(sorted.length / 2);
+
+    return sorted.length % 2
+      ? sorted[middle]
+      : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  function loadCsv(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(url, {
+        download: true,
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: result => resolve(result.data),
+        error: reject
+      });
+    });
+  }
+
+  function metricFields() {
+    return metricSelect.value === "COMET"
+      ? {
+          challengeEffect: "COMET_Excess_Challenge_Effect",
+          categoryEffect: "COMET_Excess_Category_Effect",
+          label: "COMET"
+        }
+      : {
+          challengeEffect: "chrF_Excess_Challenge_Effect",
+          categoryEffect: "chrF_Excess_Category_Effect",
+          label: "chrF++"
+        };
+  }
+
+  function normalizeData() {
+    challengeRows = challengeRows
+      .filter(row =>
+        row.Base_Model &&
+        row.Quantization &&
+        row.Direction &&
+        CHALLENGES.includes(row.Challenge)
+      )
+      .map(row => ({
+        ...row,
+        Normal_Count: number(row.Normal_Count),
+        Challenging_Count: number(row.Challenging_Count),
+        COMET_Excess_Challenge_Effect:
+          number(row.COMET_Excess_Challenge_Effect),
+        chrF_Excess_Challenge_Effect:
+          number(row.chrF_Excess_Challenge_Effect)
+      }));
+
+    categoryRows = categoryRows
+      .filter(row =>
+        row.Base_Model &&
+        row.Quantization &&
+        row.Direction &&
+        row.Category_Type &&
+        row.Category_Value
+      )
+      .map(row => ({
+        ...row,
+        Count: number(row.Count),
+        COMET_Excess_Category_Effect:
+          number(row.COMET_Excess_Category_Effect),
+        chrF_Excess_Category_Effect:
+          number(row.chrF_Excess_Category_Effect)
+      }));
+  }
+
+  function populateModels() {
+    modelSelect.innerHTML = "";
+
+    unique(
+      challengeRows
+        .filter(row => row.Quantization !== "Full Model")
+        .map(row => row.Base_Model)
+    ).forEach(model => {
+      const option = document.createElement("option");
+      option.value = model;
+      option.textContent = model;
+      modelSelect.appendChild(option);
+    });
+  }
+
+  function buildMethods() {
+    const fields = metricFields();
+    const model = modelSelect.value;
+    const direction = directionSelect.value;
+
+    const filtered = challengeRows.filter(row =>
+      row.Base_Model === model &&
+      row.Direction === direction &&
+      row.Quantization !== "Full Model"
+    );
+
+    const grouped = new Map();
+
+    filtered.forEach(row => {
+      if (!grouped.has(row.Quantization)) {
+        grouped.set(row.Quantization, {
+          Quantization: row.Quantization,
+          effects: {},
+          counts: {}
+        });
+      }
+
+      const method = grouped.get(row.Quantization);
+
+      method.effects[row.Challenge] = row[fields.challengeEffect];
+      method.counts[row.Challenge] = {
+        normal: row.Normal_Count,
+        challenging: row.Challenging_Count
+      };
+    });
+
+    let methods = [...grouped.values()]
+      .filter(method =>
+        CHALLENGES.every(challenge =>
+          Number.isFinite(method.effects[challenge])
+        )
+      )
+      .map(method => ({
+        ...method,
+        meanAbsEffect:
+          CHALLENGES.reduce(
+            (sum, challenge) =>
+              sum + Math.abs(method.effects[challenge]),
+            0
+          ) / CHALLENGES.length
+      }));
+
+    if (sortSelect.value === "effect") {
+      methods.sort((a, b) =>
+        b.meanAbsEffect - a.meanAbsEffect
+      );
+    } else {
+      methods.sort((a, b) =>
+        a.Quantization.localeCompare(b.Quantization)
+      );
+    }
+
+    return methods;
+  }
+
+  function colorLimit(matrix) {
+    const values = matrix
+      .flat()
+      .filter(Number.isFinite)
+      .map(Math.abs);
+
+    return Math.max(...values, 0.001);
+  }
+
+  function renderChallengeHeatmap(methods) {
+    const fields = metricFields();
+
+    const z = methods.map(method =>
+      CHALLENGES.map(challenge =>
+        method.effects[challenge]
+      )
+    );
+
+    const text = z.map(row =>
+      row.map(value => format(value, true))
+    );
+
+    const customdata = methods.map(method =>
+      CHALLENGES.map(challenge => [
+        method.Quantization,
+        method.counts[challenge]?.normal,
+        method.counts[challenge]?.challenging
+      ])
+    );
+
+    const limit = colorLimit(z);
+    const height = Math.max(560, methods.length * 31 + 170);
+
+    Plotly.react("challenge-heatmap", [{
+      type: "heatmap",
+      x: CHALLENGES.map(challenge =>
+        CHALLENGE_LABELS[challenge]
+      ),
+      y: methods.map(method =>
+        method.Quantization
+      ),
+      z,
+      text,
+      texttemplate: "%{text}",
+      textfont: {
+        size: 11
+      },
+      customdata,
+      zmid: 0,
+      zmin: -limit,
+      zmax: limit,
+      colorscale: [
+        [0, "#2166ac"],
+        [0.25, "#92c5de"],
+        [0.5, "#f7f7f7"],
+        [0.75, "#f4a582"],
+        [1, "#b2182b"]
+      ],
+      colorbar: {
+        title: {
+          text: fields.label
+        },
+        tickformat: "+.3~f",
+        thickness: 18
+      },
+      hovertemplate:
+        "<b>%{customdata[0]}</b><br>" +
+        "Πρόκληση: %{x}<br>" +
+        `Πρόσθετη υποβάθμιση ${fields.label}: %{z:+.3f}<br>` +
+        "Κανονικές προτάσεις: %{customdata[1]}<br>" +
+        "Προτάσεις πρόκλησης: %{customdata[2]}" +
+        "<extra></extra>"
+    }], {
+      height,
+      margin: {
+        l: 235,
+        r: 90,
+        t: 25,
+        b: 70
+      },
+      xaxis: {
+        automargin: true
+      },
+      yaxis: {
+        autorange: "reversed",
+        automargin: true,
+        tickfont: {
+          size: 11
+        }
+      },
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff"
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: [
+        "lasso2d",
+        "select2d"
+      ]
+    });
+  }
+
+  function buildCategoryData(methodNames) {
+    const fields = metricFields();
+    const model = modelSelect.value;
+    const direction = directionSelect.value;
+    const categoryType = categorySelect.value;
+
+    const filtered = categoryRows.filter(row =>
+      row.Base_Model === model &&
+      row.Direction === direction &&
+      row.Quantization !== "Full Model" &&
+      row.Category_Type === categoryType &&
+      methodNames.includes(row.Quantization) &&
+      Number.isFinite(row[fields.categoryEffect]) &&
+      (
+        categoryType === "Domain" ||
+        (Number.isFinite(row.Count) && row.Count >= MIN_TOPIC_COUNT)
+      )
+    );
+
+    const grouped = new Map();
+
+    filtered.forEach(row => {
+      if (!grouped.has(row.Category_Value)) {
+        grouped.set(row.Category_Value, []);
+      }
+
+      grouped.get(row.Category_Value).push(row);
+    });
+
+    const categories = [...grouped.entries()]
+      .map(([name, values]) => ({
+        name,
+        values,
+        meanAbs:
+          values.reduce(
+            (sum, row) =>
+              sum + Math.abs(row[fields.categoryEffect]),
+            0
+          ) / values.length
+      }))
+      .sort((a, b) => b.meanAbs - a.meanAbs)
+      .slice(0, MAX_CATEGORIES);
+
+    return {
+      fields,
+      categoryType,
+      categories
+    };
+  }
+
+  function renderCategoryPlot(methods) {
+    const methodNames = methods.map(method =>
+      method.Quantization
+    );
+
+    const {
+      fields,
+      categoryType,
+      categories
+    } = buildCategoryData(methodNames);
+
+    document.getElementById("category-count").textContent =
+      categories.length;
+
+    document.getElementById("category-title").textContent =
+      categoryType === "Domain"
+        ? "Domains"
+        : "Topics";
+
+    document.getElementById("category-description").textContent =
+      categoryType === "Domain"
+        ? "Κάθε τελεία είναι μία μέθοδος. Η μαύρη γραμμή δείχνει τη διάμεση τιμή."
+        : "Κάθε τελεία είναι μία μέθοδος. Εμφανίζονται topics με τουλάχιστον 5 προτάσεις.";
+
+    const pointX = [];
+    const pointY = [];
+    const pointCustom = [];
+
+    categories.forEach(category => {
+      category.values.forEach(row => {
+        pointX.push(row[fields.categoryEffect]);
+        pointY.push(category.name);
+        pointCustom.push([
+          row.Quantization,
+          row.Count
+        ]);
+      });
+    });
+
+    const medians = categories.map(category =>
+      median(
+        category.values.map(row =>
+          row[fields.categoryEffect]
+        )
+      )
+    );
+
+    const traces = [
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "Μέθοδοι",
+        x: pointX,
+        y: pointY,
+        customdata: pointCustom,
+        marker: {
+          size: 8,
+          opacity: 0.58
+        },
+        hovertemplate:
+          "<b>%{customdata[0]}</b><br>" +
+          `${categoryType}: %{y}<br>` +
+          `Πρόσθετη υποβάθμιση ${fields.label}: %{x:+.3f}<br>` +
+          "Προτάσεις: %{customdata[1]}" +
+          "<extra></extra>"
+      },
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "Διάμεση τιμή",
+        x: medians,
+        y: categories.map(category =>
+          category.name
+        ),
+        marker: {
+          size: 13,
+          symbol: "diamond",
+          color: "#111827",
+          line: {
+            color: "#ffffff",
+            width: 1
+          }
+        },
+        hovertemplate:
+          "<b>%{y}</b><br>" +
+          `Διάμεση πρόσθετη υποβάθμιση ${fields.label}: %{x:+.3f}` +
+          "<extra></extra>"
+      }
+    ];
+
+    const height = Math.max(
+      540,
+      categories.length * 46 + 150
+    );
+
+    Plotly.react("category-plot", traces, {
+      height,
+      margin: {
+        l: categoryType === "Topic" ? 240 : 170,
+        r: 40,
+        t: 35,
+        b: 70
+      },
+      legend: {
+        orientation: "h",
+        x: 0,
+        y: 1.06
+      },
+      xaxis: {
+        title: `Πρόσθετη υποβάθμιση ${fields.label}`,
+        tickformat: "+.3~f",
+        zeroline: true,
+        zerolinewidth: 2,
+        showgrid: true
+      },
+      yaxis: {
+        autorange: "reversed",
+        automargin: true,
+        categoryorder: "array",
+        categoryarray: categories.map(category =>
+          category.name
+        )
+      },
+      hovermode: "closest",
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff"
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: [
+        "lasso2d",
+        "select2d"
+      ]
+    });
+  }
+
+  function updateSummary(methods) {
+    document.getElementById("method-count").textContent =
+      methods.length;
+
+    const means = CHALLENGES.map(challenge => ({
+      challenge,
+      value:
+        methods.reduce(
+          (sum, method) =>
+            sum + Math.abs(method.effects[challenge]),
+          0
+        ) / Math.max(methods.length, 1)
+    }));
+
+    means.sort((a, b) => b.value - a.value);
+
+    document.getElementById("strongest-challenge").textContent =
+      means.length
+        ? CHALLENGE_LABELS[means[0].challenge]
+        : "—";
+  }
+
+  function render() {
+    const methods = buildMethods();
+
+    updateSummary(methods);
+    renderChallengeHeatmap(methods);
+    renderCategoryPlot(methods);
+  }
+
+  modelSelect.addEventListener("change", render);
+  directionSelect.addEventListener("change", render);
+  metricSelect.addEventListener("change", render);
+  categorySelect.addEventListener("change", render);
+  sortSelect.addEventListener("change", render);
+
+  async function start() {
+    if (window.location.protocol === "file:") {
+      statusBox.style.display = "block";
+      statusBox.innerHTML =
+        "Η σελίδα πρέπει να ανοίξει μέσω server. " +
+        "Τρέξε <code>python -m http.server 8000</code> " +
+        "και άνοιξε <code>http://localhost:8000/</code>.";
+      return;
+    }
+
+    try {
+      [challengeRows, categoryRows] = await Promise.all([
+        loadCsv(FILES.challenges),
+        loadCsv(FILES.categories)
+      ]);
+
+      normalizeData();
+      populateModels();
+      render();
+    } catch (error) {
+      statusBox.style.display = "block";
+      statusBox.innerHTML =
+        "Δεν ήταν δυνατή η φόρτωση των CSV. " +
+        "Βεβαιώσου ότι τα <code>challenge_specific_effects.csv</code> και " +
+        "<code>category_specific_effects.csv</code> βρίσκονται στον ίδιο " +
+        "φάκελο με το HTML.<br><br>" +
+        String(error);
+    }
+  }
+
+  start();
+</script>
+</body>
+</html>
