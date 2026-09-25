@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NLLB-200 3.3B Quantization Dashboard</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{
+  --bg:#eef3f8; --card:#fff; --ink:#263746; --muted:#6b7c8b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:28px;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color:var(--ink);
+  background:linear-gradient(135deg,#f6f9fb 0%,var(--bg) 100%);
+}
+header{max-width:1200px;margin:0 auto 22px;text-align:center}
+h1{margin:0 0 8px;color:#20384c;font-size:30px}
+.subtitle{margin:0 auto;max-width:900px;color:var(--muted);font-size:14px;line-height:1.55}
+.container{max-width:1200px;margin:0 auto}
+.controls{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 auto 20px;padding:13px 15px;background:#fff;border-radius:11px;
+  box-shadow:0 3px 15px rgba(37,55,73,.06);
+}
+.controls strong{font-size:13px}
+.family-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 9px;
+  border:1px solid #d7e0e7;border-radius:999px;background:#f9fbfc;
+  font-size:12px;cursor:pointer
+}
+.card{
+  background:var(--card);border-radius:14px;padding:23px;margin-bottom:26px;
+  box-shadow:0 5px 22px rgba(37,55,73,.07);
+}
+h2{margin:0 0 7px;color:#243b4d;font-size:20px}
+.note{margin:0 0 18px;color:var(--muted);font-size:13px;line-height:1.5}
+select{
+  padding:7px 9px;border:1px solid #ccd7e0;border-radius:6px;background:#fff;color:#34495e
+}
+.chart-wrap{width:100%;overflow-x:auto}
+svg{width:100%;height:auto;display:block}
+.axis text{fill:#566877;font-size:11px}
+.axis path,.axis line{stroke:#b8c5cf}
+.grid line{stroke:#e7edf2}
+.grid path{display:none}
+.tooltip{
+  position:absolute;z-index:20;pointer-events:none;opacity:0;max-width:350px;
+  padding:11px 13px;border-radius:8px;background:rgba(24,34,43,.95);
+  color:#fff;font-size:12px;line-height:1.5;box-shadow:0 8px 20px rgba(0,0,0,.2)
+}
+.point-label{font-size:10px;fill:#334b5d;pointer-events:none}
+.footer-note{
+  max-width:1200px;margin:0 auto;color:#73818d;font-size:12px;text-align:center
+}
+@media(max-width:720px){body{padding:14px}.card{padding:16px}}
+
+.frontier-chart{
+  width:100%;
+  overflow-x:auto;
+  border:1px solid #e1e8ee;
+  border-radius:10px;
+  background:#fff;
+}
+.frontier-chart svg{
+  display:block;
+  min-width:720px;
+  width:100%;
+  height:auto;
+}
+.frontier-chart .legend text{fill:#34495e;font-size:13px}
+.frontier-chart .value-label{fill:#253746;font-size:14px;font-weight:600}
+.figure-explain{
+  margin:12px 0 0;
+  padding:12px 14px;
+  border-left:4px solid #8aa5b8;
+  background:#f7fafc;
+  color:#526675;
+  font-size:13px;
+  line-height:1.55;
+  border-radius:6px;
+}
+.figure-explain strong{color:#2e4557}
+
+
+.dashboard-section{
+  margin:34px 0 16px;
+  padding:14px 18px;
+  border-radius:12px;
+  background:#dfeaf3;
+  border:1px solid #c8d8e5;
+}
+.dashboard-section h2{
+  margin:0 0 4px;
+  font-size:22px;
+  color:#20384c;
+}
+.dashboard-section p{
+  margin:0;
+  color:#5f7282;
+  font-size:13px;
+  line-height:1.5;
+}
+.dashboard-section.focused{
+  margin-top:46px;
+  background:#f1eadf;
+  border-color:#dfcfb8;
+}
+.dashboard-section.focused h2{
+  color:#5a4630;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NLLB-200 3.3B Quantization Dashboard</h1>
+  <p class="subtitle">
+    Greek↔English FLORES-200 evaluation. Compare translation quality, transformer compression and
+    measured resource trade-offs.
+  </p>
+</header>
+
+<div class="container">
+  <div class="dashboard-section">
+    <h2>Section A — Full Experimental Overview</h2>
+    <p>These three visualizations include the complete set of NLLB quantization experiments and references.</p>
+  </div>
+
+  <div class="card">
+    <h2>1. Metric Comparison Across Experiments</h2>
+    <p class="note">
+      Compare pure INT1, pure INT2, and Experiments 1–15. Both the bar length and the
+      experiment ordering reflect the selected metric; hover for translation details.
+    </p>
+    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:9px;align-items:center;">
+      <label for="qualitySort" style="font-size:12px;font-weight:700;">Metric:</label>
+      <select id="qualitySort">
+        <option value="gr_en">GR→EN COMET</option>
+        <option value="en_gr">EN→GR COMET</option>
+        <option value="compression">Effective transformer bpw (lowest first)</option>
+        <option value="target2">Distance from 2.0 effective bpw (closest first)</option>
+        <option value="int1">Comparable INT1 fraction (highest first)</option>
+      </select>
+      <span id="sortDescription" style="font-size:12px;color:#6b7c8b;"></span>
+    </div>
+    <div id="qualityChart" class="chart-wrap"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Quality–Compression / Resource Trade-off Explorer</h2>
+    <p class="note">
+      Choose a compression or resource metric for the X-axis and a translation direction for the Y-axis.
+    </p>
+    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+      <label for="scatterX" style="font-size:12px;font-weight:700;">X-axis:</label>
+      <select id="scatterX">
+        <option value="Effective_Transformer_BPW">Effective transformer bpw</option>
+        <option value="INT1_Fraction_pct">Comparable INT1 fraction (%)</option>
+        <option value="Compression_Gain_vs_INT2_pct">Compression gain vs INT2 (%)</option>
+        <option value="Static_VRAM_GiB">Static active VRAM (GiB)</option>
+        <option value="Peak_Active_VRAM_GiB">Peak active VRAM (GiB)</option>
+        <option value="Mean_Time_All_s">Mean generation time (s)</option>
+        <option value="Max_Token_Hit_Rate_pct">Max-token hit rate (%)</option>
+      </select>
+      <label for="scatterY" style="font-size:12px;font-weight:700;">Y-axis:</label>
+      <select id="scatterY">
+        <option value="GR_EN_COMET">GR→EN COMET</option>
+        <option value="EN_GR_COMET">EN→GR COMET</option>
+      </select>
+    </div>
+    <div id="precisionChart" class="chart-wrap"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Directional Robustness: GR→EN vs EN→GR</h2>
+    <p class="note">
+      Comparison of the two translation directions with wider connectors indicating stronger
+      directional asymmetry.
+    </p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px;font-weight:700;">Sort:</label>
+      <select id="directionSort">
+        <option value="order">Experiment order</option>
+        <option value="gap">Largest directional gap</option>
+      </select>
+    </div>
+    <div id="directionChart" class="chart-wrap"></div>
+  </div>
+
+
+  <div class="dashboard-section focused">
+    <h2>Section B — Focused Compression-Frontier Allocation Analysis</h2>
+    <p>
+      The next two figures use only four checkpoints: Exp.10 (15.89%), Exp.12 (20.35%),
+      corrected 25%, and Exp.11 (31.61%).
+    </p>
+  </div>
+
+  <div class="card figure-card">
+    <h2>4. INT1 Placement Along the Compression Frontier</h2>
+    <p class="note">
+      The total bar height is the global INT1 share. The stacked sections show whether those
+      INT1 blocks are placed in the encoder or decoder.
+    </p>
+    <div id="frontierPlacementChart" class="frontier-chart" aria-label="INT1 allocation in encoder and decoder"></div>
+  </div>
+
+  <div class="card figure-card">
+    <h2>5. Encoder Depth Allocation Along the Compression Frontier</h2>
+    <p class="note">
+      Encoder layers are grouped into four depth regions. The vertical axis shows the percentage
+      of blocks inside each region that are stored as INT1.
+    </p>
+    <div id="frontierDepthChart" class="frontier-chart" aria-label="INT1 fraction by encoder depth region"></div>
+  </div>
+
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const DATA_URL = "nllb_dashboard_data_with_allocation.csv";
+let DATA = [];
+
+const familyDomain = [
+  "Reference","Whole-matrix","BlockMix","ResidualMix","Delta-Damage","Systems"
+];
+
+const familyColors = d3.scaleOrdinal()
+  .domain(familyDomain)
+  .range(["#697785","#2874a6","#17a589","#8e44ad","#d68910","#c0392b"]);
+
+const tooltip = d3.select("#tooltip");
+
+function finite(v){
+  return v !== null && v !== undefined && v !== "" && Number.isFinite(+v);
+}
+
+function fmt(v,digits=4){
+  return finite(v) ? (+v).toFixed(digits) : "—";
+}
+
+function filteredData(){
+  // All experiments are always shown; family filtering is intentionally disabled.
+  return DATA.slice();
+}
+
+function showTooltip(event,d){
+  const int1 = finite(d.INT1_Fraction_pct) ? `${fmt(d.INT1_Fraction_pct,2)}%` : "not directly comparable";
+  tooltip
+    .style("opacity",1)
+    .html(`
+      <b>${d.Experiment} — ${d.Method}</b><br>
+      <span style="color:#c9d6df">${d.Representation}</span>
+      <hr style="border:0;border-top:1px solid #53616c;margin:6px 0">
+      Global COMET: <b>${fmt(d.Global_COMET)}</b><br>
+      GR→EN: ${fmt(d.GR_EN_COMET)}<br>
+      EN→GR: ${fmt(d.EN_GR_COMET)}<br>
+      Effective transformer bpw: ${fmt(d.Effective_Transformer_BPW,4)}<br>
+      Comparable INT1 share: ${int1}
+    `)
+    .style("left",(event.pageX+14)+"px")
+    .style("top",(event.pageY-35)+"px");
+}
+
+function hideTooltip(){ tooltip.style("opacity",0); }
+
+// First visualization only: the chosen metric controls both sorting and bar length.
+// Ties use the numeric experiment sequence; missing/non-comparable values appear last.
+const firstChartModes = {
+  gr_en: {
+    label: "GR→EN COMET", ascending: false,
+    value: d => finite(d.GR_EN_COMET) ? +d.GR_EN_COMET : null,
+    format: v => fmt(v,4),
+    axisLabel: "GR→EN COMET"
+  },
+  en_gr: {
+    label: "EN→GR COMET", ascending: false,
+    value: d => finite(d.EN_GR_COMET) ? +d.EN_GR_COMET : null,
+    format: v => fmt(v,4),
+    axisLabel: "EN→GR COMET"
+  },
+  compression: {
+    label: "Effective transformer bpw", ascending: true,
+    value: d => finite(d.Effective_Transformer_BPW) ? +d.Effective_Transformer_BPW : null,
+    format: v => `${v.toFixed(4)} bpw`,
+    axisLabel: "Effective transformer bits/weight"
+  },
+  target2: {
+    label: "Distance from 2.0 effective bpw", ascending: true,
+    value: d => finite(d.Effective_Transformer_BPW) ? Math.abs(+d.Effective_Transformer_BPW-2.0) : null,
+    format: v => `Δ ${v.toFixed(4)} bpw`,
+    axisLabel: "Absolute distance from 2.0 effective bpw"
+  },
+  int1: {
+    label: "Comparable INT1 fraction", ascending: false,
+    // ResidualMix uses a universal binary base and has no directly comparable INT1 share.
+    value: d => d.Family === "ResidualMix" || !finite(d.INT1_Fraction_pct) ? null : +d.INT1_Fraction_pct,
+    format: v => `${v.toFixed(2)}%`,
+    axisLabel: "Comparable INT1 fraction (%)"
+  }
+};
+function firstChartValue(row,mode){
+  return (firstChartModes[mode] || firstChartModes.gr_en).value(row);
+}
+function sortFirstChart(rows,mode){
+  const cfg=firstChartModes[mode] || firstChartModes.gr_en;
+  return rows.map((row,index)=>({row,index,value:cfg.value(row)}))
+    .sort((a,b)=>{
+      if(a.value===null && b.value!==null) return 1;
+      if(b.value===null && a.value!==null) return -1;
+      if(a.value!==null && b.value!==null && a.value!==b.value){
+        return cfg.ascending ? a.value-b.value : b.value-a.value;
+      }
+      return (+a.row.Order)-(+b.row.Order) || a.index-b.index;
+    }).map(x=>x.row);
+}
+function renderQuality(){
+  const mode=d3.select("#qualitySort").property("value");
+  const cfg=firstChartModes[mode] || firstChartModes.gr_en;
+  const data=sortFirstChart(filteredData(),mode);
+  const validValues=data.map(d=>cfg.value(d)).filter(v=>v!==null);
+  const int2=DATA.find(d=>d.Experiment==="INT2 Reference");
+  const refValue=int2 ? cfg.value(int2) : null;
+  const W=1140,left=178,right=96,top=24,bottom=59,rowH=31;
+  const H=Math.max(240,data.length*rowH+top+bottom),iw=W-left-right,ih=H-top-bottom;
+  d3.select("#qualityChart").selectAll("*").remove();
+  const svg=d3.select("#qualityChart").append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const g=svg.append("g").attr("transform",`translate(${left},${top})`);
+
+  const upper=d3.max(validValues) || 1;
+  const x=d3.scaleLinear().domain([0,upper*1.13]).range([0,iw]).nice();
+  const y=d3.scaleBand().domain(data.map(d=>d.Experiment)).range([0,ih]).padding(.20);
+
+  g.append("g").attr("class","grid").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(8).tickSize(-ih).tickFormat(""));
+  g.append("g").attr("class","axis").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(8));
+  g.append("g").attr("class","axis").call(d3.axisLeft(y).tickSize(0))
+    .call(g=>g.select(".domain").remove());
+
+  if(refValue!==null){
+    g.append("line")
+      .attr("x1",x(refValue)).attr("x2",x(refValue)).attr("y1",0).attr("y2",ih)
+      .attr("stroke","#7f8c8d").attr("stroke-width",1.3)
+      .attr("stroke-dasharray","5,5");
+  }
+
+  // Missing values are shown as n/a rather than 0-length numeric bars.
+  g.selectAll("rect.metric-bar").data(data,d=>d.Experiment).join("rect")
+    .attr("class","metric-bar")
+    .attr("x",0).attr("y",d=>y(d.Experiment))
+    .attr("width",d=>{const v=cfg.value(d);return v===null?0:x(v);})
+    .attr("height",y.bandwidth()).attr("rx",4)
+    .attr("fill",d=>familyColors(d.Family))
+    .on("mousemove",showTooltip).on("mouseout",hideTooltip);
+
+  g.selectAll("text.value").data(data,d=>d.Experiment).join("text")
+    .attr("class","value")
+    .attr("x",d=>{const v=cfg.value(d);return v===null?6:x(v)+7;})
+    .attr("y",d=>y(d.Experiment)+y.bandwidth()/2+4)
+    .style("font-size","10px").style("fill","#4c6071")
+    .text(d=>{const v=cfg.value(d);return v===null?"n/a":cfg.format(v);});
+
+  svg.append("text").attr("x",left+iw/2).attr("y",H-14)
+    .attr("text-anchor","middle").style("font-size","12px").style("fill","#4c6071")
+    .text(cfg.axisLabel);
+}
+
+// Visualization 2: both axes are chosen independently. Only the two directional
+// COMET metrics are offered on Y; Global COMET and generated tok/s are not options.
+const tradeoffLabels = {
+  Effective_Transformer_BPW:"Effective transformer bits/weight",
+  INT1_Fraction_pct:"Comparable INT1 fraction (%)",
+  Compression_Gain_vs_INT2_pct:"Compression gain vs pure INT2 (%)",
+  Static_VRAM_GiB:"Static active VRAM (GiB)",
+  Peak_Active_VRAM_GiB:"Peak active VRAM (GiB)",
+  Mean_Time_All_s:"Mean generation time (s)",
+  Max_Token_Hit_Rate_pct:"Max-token hit rate (%)",
+  GR_EN_COMET:"GR→EN COMET",
+  EN_GR_COMET:"EN→GR COMET"
+};
+function scatterMetricValue(d,key){
+  if(key==="INT1_Fraction_pct" && d.Family==="ResidualMix") return null;
+  return finite(d[key]) ? +d[key] : null;
+}
+function scatterDomain(values){
+  if(!values.length) return [0,1];
+  let [min,max]=d3.extent(values);
+  const pad=min===max ? Math.max(Math.abs(min)*0.08,0.02) : (max-min)*0.08;
+  const lo=min>=0 ? Math.max(0,min-pad) : min-pad;
+  return [lo,max+pad];
+}
+function renderPrecision(){
+  const xk=d3.select("#scatterX").property("value");
+  const yk=d3.select("#scatterY").property("value");
+  const data=filteredData().filter(d=>
+    scatterMetricValue(d,xk)!==null && scatterMetricValue(d,yk)!==null
+  );
+  const W=1140,H=520,m={top:30,right:150,bottom:65,left:80};
+  const iw=W-m.left-m.right, ih=H-m.top-m.bottom;
+  d3.select("#precisionChart").selectAll("*").remove();
+  if(!data.length){
+    d3.select("#precisionChart").append("p").attr("class","note")
+      .text("No experiments have both selected metrics available.");
+    return;
+  }
+
+  const svg=d3.select("#precisionChart").append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+  const x=d3.scaleLinear().domain(scatterDomain(data.map(d=>scatterMetricValue(d,xk))))
+    .range([0,iw]).nice();
+  const y=d3.scaleLinear().domain(scatterDomain(data.map(d=>scatterMetricValue(d,yk))))
+    .range([ih,0]).nice();
+
+  g.append("g").attr("class","grid").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(8).tickSize(-ih).tickFormat(""));
+  g.append("g").attr("class","grid")
+    .call(d3.axisLeft(y).ticks(8).tickSize(-iw).tickFormat(""));
+  g.append("g").attr("class","axis").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(8));
+  g.append("g").attr("class","axis").call(d3.axisLeft(y).ticks(8));
+
+  svg.append("text").attr("x",m.left+iw/2).attr("y",H-15)
+    .attr("text-anchor","middle").text(tradeoffLabels[xk]);
+  svg.append("text").attr("transform","rotate(-90)")
+    .attr("x",-(m.top+ih/2)).attr("y",18)
+    .attr("text-anchor","middle").text(tradeoffLabels[yk]);
+
+  const ref=DATA.find(d=>d.Experiment==="INT2 Reference");
+  if(ref && scatterMetricValue(ref,yk)!==null){
+    const refY=y(scatterMetricValue(ref,yk));
+    g.append("line").attr("x1",0).attr("x2",iw)
+      .attr("y1",refY).attr("y2",refY)
+      .attr("stroke","#7f8c8d").attr("stroke-width",1.2)
+      .attr("stroke-dasharray","6,5");
+    g.append("text").attr("x",iw-3).attr("y",Math.max(10,refY-6))
+      .attr("text-anchor","end").style("font-size","10px")
+      .style("fill","#6b7c8b").text("INT2 reference");
+  }
+
+  const points=g.selectAll("circle.scatter-point").data(data,d=>d.Experiment)
+    .join("circle").attr("class","scatter-point")
+    .attr("cx",d=>x(scatterMetricValue(d,xk)))
+    .attr("cy",d=>y(scatterMetricValue(d,yk)))
+    .attr("r",7).attr("fill",d=>familyColors(d.Family))
+    .attr("stroke","#fff").attr("stroke-width",1.5)
+    .style("cursor","pointer")
+    .on("mousemove",function(event,d){
+      showTooltip(event,d);
+      points.attr("opacity",p=>p.Family===d.Family?1:.20);
+      d3.select(this).attr("r",10).attr("stroke","#263746").attr("stroke-width",2);
+    })
+    .on("mouseout",function(){
+      hideTooltip();
+      points.attr("opacity",1).attr("r",7).attr("stroke","#fff").attr("stroke-width",1.5);
+    });
+
+  // Labels remain visible by default; the checkbox is no longer shown.
+  g.selectAll("text.point-label").data(data,d=>d.Experiment).join("text")
+    .attr("class","point-label")
+    .attr("x",d=>x(scatterMetricValue(d,xk))+8)
+    .attr("y",d=>y(scatterMetricValue(d,yk))-7)
+    .text(d=>d.Experiment);
+
+  const legend=svg.append("g").attr("transform",`translate(${W-130},45)`);
+  familyDomain.forEach((f,i)=>{
+    const item=legend.append("g").attr("transform",`translate(0,${i*20})`);
+    item.append("circle").attr("r",5).attr("fill",familyColors(f));
+    item.append("text").attr("x",10).attr("y",4)
+      .style("font-size","10px").style("fill","#526675").text(f);
+  });
+}
+
+function renderDirections(){
+  let data=filteredData().filter(d=>finite(d.GR_EN_COMET)&&finite(d.EN_GR_COMET)).slice();
+  const mode=d3.select("#directionSort").property("value");
+
+  if(mode==="gap"){
+    data.sort((a,b)=>
+      Math.abs(+b.GR_EN_COMET-+b.EN_GR_COMET)-
+      Math.abs(+a.GR_EN_COMET-+a.EN_GR_COMET)
+    );
+  } else {
+    data.sort((a,b)=>+a.Order-+b.Order);
+  }
+
+  const W=1140,left=150,right=60,top=25,bottom=40,rowH=31;
+  const H=Math.max(240,data.length*rowH+top+bottom);
+  const iw=W-left-right, ih=H-top-bottom;
+
+  d3.select("#directionChart").selectAll("*").remove();
+  const svg=d3.select("#directionChart").append("svg").attr("viewBox",`0 0 ${W} ${H}`);
+  const g=svg.append("g").attr("transform",`translate(${left},${top})`);
+
+  const x=d3.scaleLinear().domain([0,0.9]).range([0,iw]);
+  const y=d3.scaleBand().domain(data.map(d=>d.Experiment)).range([0,ih]).padding(.30);
+
+  g.append("g").attr("class","grid")
+    .attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(9).tickSize(-ih).tickFormat(""));
+
+  g.append("g").attr("class","axis")
+    .attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).ticks(9));
+
+  g.append("g").attr("class","axis")
+    .call(d3.axisLeft(y).tickSize(0))
+    .call(g=>g.select(".domain").remove());
+
+  g.selectAll("line.connector").data(data).join("line")
+    .attr("class","connector")
+    .attr("x1",d=>x(Math.min(+d.GR_EN_COMET,+d.EN_GR_COMET)))
+    .attr("x2",d=>x(Math.max(+d.GR_EN_COMET,+d.EN_GR_COMET)))
+    .attr("y1",d=>y(d.Experiment)+y.bandwidth()/2)
+    .attr("y2",d=>y(d.Experiment)+y.bandwidth()/2)
+    .attr("stroke","#aebbc5").attr("stroke-width",3);
+
+  g.selectAll("circle.gr").data(data).join("circle")
+    .attr("cx",d=>x(+d.GR_EN_COMET))
+    .attr("cy",d=>y(d.Experiment)+y.bandwidth()/2)
+    .attr("r",6).attr("fill","#2874a6")
+    .attr("stroke","#fff").attr("stroke-width",1.3)
+    .on("mousemove",showTooltip).on("mouseout",hideTooltip);
+
+  g.selectAll("circle.en").data(data).join("circle")
+    .attr("cx",d=>x(+d.EN_GR_COMET))
+    .attr("cy",d=>y(d.Experiment)+y.bandwidth()/2)
+    .attr("r",6).attr("fill","#1e8449")
+    .attr("stroke","#fff").attr("stroke-width",1.3)
+    .on("mousemove",showTooltip).on("mouseout",hideTooltip);
+
+  const legend=svg.append("g").attr("transform",`translate(${W-215},10)`);
+  legend.append("circle").attr("r",5).attr("fill","#2874a6");
+  legend.append("text").attr("x",10).attr("y",4).style("font-size","10px").text("GR→EN");
+  legend.append("circle").attr("cx",90).attr("r",5).attr("fill","#1e8449");
+  legend.append("text").attr("x",100).attr("y",4).style("font-size","10px").text("EN→GR");
+}
+
+// Source: experiment10, experiment12, corrected25, and experiment11 allocation CSVs.
+// Section B is rendered from block counts at page load (no embedded raster images).
+// All four checkpoints use the same 688,128 transformer blocks, of which
+// each of the four encoder depth regions contains 73,728 blocks.
+const FRONTIER_TOTAL_BLOCKS = 688128;
+const FRONTIER_REGION_BLOCKS = 73728;
+const FRONTIER_REGIONS = ["Layers 0–5", "Layers 6–11", "Layers 12–17", "Layers 18–23"];
+const FRONTIER_ALLOCATION = [{"label":"Exp.10","color":"#1f77b4","encoderRegionINT1":[0,0,49140,60204],"decoderINT1":0},{"label":"Exp.12","color":"#ff7f0e","encoderRegionINT1":[0,18432,58356,63276],"decoderINT1":0},{"label":"Corrected 25%","color":"#2ca02c","encoderRegionINT1":[0,45480,63276,63276],"decoderINT1":0},{"label":"Exp.11","color":"#d62728","encoderRegionINT1":[9216,36864,60816,64752],"decoderINT1":45848}];
+
+function frontierRows(){
+  return FRONTIER_ALLOCATION.map(d=>{
+    const encoderINT1=d.encoderRegionINT1.reduce((a,b)=>a+b,0);
+    const decoderINT1=d.decoderINT1;
+    return {...d,encoderINT1,encoderPct:100*encoderINT1/FRONTIER_TOTAL_BLOCKS,
+      decoderPct:100*decoderINT1/FRONTIER_TOTAL_BLOCKS,
+      totalPct:100*(encoderINT1+decoderINT1)/FRONTIER_TOTAL_BLOCKS,
+      regionPct:d.encoderRegionINT1.map(n=>100*n/FRONTIER_REGION_BLOCKS)};
+  });
+}
+function showFrontierTooltip(event,html){
+  tooltip.style("opacity",1).html(html)
+    .style("left",(event.pageX+14)+"px")
+    .style("top",(event.pageY-35)+"px");
+}
+function renderFrontierPlacement(){
+  const data=frontierRows();
+  const W=1080,H=510,m={top:60,right:30,bottom:73,left:90};
+  const iw=W-m.left-m.right,ih=H-m.top-m.bottom;
+  const container=d3.select("#frontierPlacementChart");
+  container.selectAll("*").remove();
+  const svg=container.append("svg").attr("viewBox",`0 0 ${W} ${H}`)
+    .attr("role","img").attr("aria-label","Stacked bars of encoder and decoder INT1 shares for four compression-frontier checkpoints");
+  const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+  const x=d3.scaleBand().domain(data.map(d=>d.label)).range([0,iw]).padding(.24);
+  const y=d3.scaleLinear().domain([0,35]).range([ih,0]);
+  g.append("g").attr("class","grid").call(d3.axisLeft(y).ticks(7).tickSize(-iw).tickFormat(""));
+  g.append("g").attr("class","axis").call(d3.axisLeft(y).ticks(7).tickFormat(v=>`${v}%`));
+  g.append("g").attr("class","axis").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).tickSizeOuter(0));
+  const groups=g.selectAll("g.frontier-bar").data(data).join("g")
+    .attr("class","frontier-bar").attr("transform",d=>`translate(${x(d.label)},0)`);
+  groups.append("rect").attr("width",x.bandwidth())
+    .attr("y",d=>y(d.encoderPct)).attr("height",d=>y(0)-y(d.encoderPct))
+    .attr("fill","#1f77b4").on("mousemove",(event,d)=>showFrontierTooltip(event,
+      `<b>${d.label}</b><br>Encoder INT1: ${d.encoderPct.toFixed(2)} pp of all transformer blocks<br>`+
+      `Encoder INT1 blocks: ${d.encoderINT1.toLocaleString("en-US")}`))
+    .on("mouseout",hideTooltip);
+  groups.append("rect").attr("width",x.bandwidth())
+    .attr("y",d=>y(d.totalPct)).attr("height",d=>y(d.encoderPct)-y(d.totalPct))
+    .attr("fill","#ff7f0e").on("mousemove",(event,d)=>showFrontierTooltip(event,
+      `<b>${d.label}</b><br>Decoder INT1: ${d.decoderPct.toFixed(2)} pp of all transformer blocks<br>`+
+      `Decoder INT1 blocks: ${d.decoderINT1.toLocaleString("en-US")}`))
+    .on("mouseout",hideTooltip);
+  groups.append("text").attr("class","value-label")
+    .attr("x",x.bandwidth()/2).attr("y",d=>y(d.totalPct)-10)
+    .attr("text-anchor","middle").text(d=>`${d.totalPct.toFixed(2)}%`);
+  svg.append("text").attr("transform","rotate(-90)")
+    .attr("x",-(m.top+ih/2)).attr("y",21).attr("text-anchor","middle")
+    .style("font-size","14px").text("INT1 blocks as % of all transformer blocks");
+  const legend=svg.append("g").attr("class","legend").attr("transform",`translate(${m.left+10},18)`);
+  [["Encoder INT1","#1f77b4"],["Decoder INT1","#ff7f0e"]].forEach(([name,color],i)=>{
+    const item=legend.append("g").attr("transform",`translate(${i*162},0)`);
+    item.append("rect").attr("width",16).attr("height",13).attr("fill",color);
+    item.append("text").attr("x",23).attr("y",11).text(name);
+  });
+}
+function renderFrontierDepth(){
+  const data=frontierRows();
+  const W=1080,H=520,m={top:95,right:32,bottom:70,left:90};
+  const iw=W-m.left-m.right,ih=H-m.top-m.bottom;
+  const container=d3.select("#frontierDepthChart");
+  container.selectAll("*").remove();
+  const svg=container.append("svg").attr("viewBox",`0 0 ${W} ${H}`)
+    .attr("role","img").attr("aria-label","INT1 fraction within four encoder depth regions, compared across four checkpoints");
+  const g=svg.append("g").attr("transform",`translate(${m.left},${m.top})`);
+  const x=d3.scalePoint().domain(FRONTIER_REGIONS).range([0,iw]).padding(.08);
+  const y=d3.scaleLinear().domain([0,100]).range([ih,0]);
+  g.append("g").attr("class","grid").call(d3.axisLeft(y).ticks(5).tickSize(-iw).tickFormat(""));
+  g.append("g").attr("class","axis").call(d3.axisLeft(y).ticks(5).tickFormat(v=>`${v}%`));
+  g.append("g").attr("class","axis").attr("transform",`translate(0,${ih})`)
+    .call(d3.axisBottom(x).tickSizeOuter(0));
+  const line=d3.line().x((pct,i)=>x(FRONTIER_REGIONS[i])).y(pct=>y(pct));
+  data.forEach(d=>{
+    g.append("path").datum(d.regionPct).attr("fill","none")
+      .attr("stroke",d.color).attr("stroke-width",3)
+      .attr("stroke-linejoin","round").attr("stroke-linecap","round")
+      .attr("d",line);
+    g.selectAll(`circle.point-${data.indexOf(d)}`).data(d.regionPct.map((pct,i)=>({pct,i}))).join("circle")
+      .attr("cx",p=>x(FRONTIER_REGIONS[p.i])).attr("cy",p=>y(p.pct))
+      .attr("r",5).attr("fill",d.color).attr("stroke","#fff").attr("stroke-width",1)
+      .on("mousemove",(event,p)=>showFrontierTooltip(event,
+        `<b>${d.label}</b><br>${FRONTIER_REGIONS[p.i]}: ${p.pct.toFixed(2)}% INT1 within region`))
+      .on("mouseout",hideTooltip);
+  });
+  svg.append("text").attr("transform","rotate(-90)")
+    .attr("x",-(m.top+ih/2)).attr("y",21).attr("text-anchor","middle")
+    .style("font-size","14px").text("INT1 share within encoder region (%)");
+  const legend=svg.append("g").attr("class","legend").attr("transform",`translate(${m.left+8},19)`);
+  data.forEach((d,i)=>{
+    const item=legend.append("g").attr("transform",`translate(${(i%2)*285},${Math.floor(i/2)*29})`);
+    item.append("line").attr("x1",0).attr("x2",21).attr("y1",6).attr("y2",6)
+      .attr("stroke",d.color).attr("stroke-width",3);
+    item.append("circle").attr("cx",10.5).attr("cy",6).attr("r",4).attr("fill",d.color);
+    item.append("text").attr("x",29).attr("y",10).text(d.label==="Corrected 25%" ? d.label : `${d.label} ${d.totalPct.toFixed(2)}%`);
+  });
+}
+
+function renderAll(){
+  renderQuality();
+  renderPrecision();
+  renderDirections();
+}
+
+function init(data){
+  DATA=data;
+  d3.select("#qualitySort").on("change",renderQuality);
+  d3.select("#directionSort").on("change",renderDirections);
+  d3.selectAll("#scatterX,#scatterY").on("change",renderPrecision);
+  renderAll();
+}
+
+renderFrontierPlacement();
+renderFrontierDepth();
+
+d3.csv(DATA_URL,d3.autoType)
+  .then(init)
+  .catch(err=>{
+    console.error(err);
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      `<div style="max-width:1200px;margin:12px auto;padding:12px 14px;border-radius:8px;
+                   background:#fff4e8;border:1px solid #efcfa8;color:#875c29;font-family:Inter,Arial,sans-serif;">
+       <b>Could not load ${DATA_URL}.</b>
+       Keep the HTML and CSV in the same folder and open the folder through a local server,
+       for example <code>python -m http.server 8000</code>.
+       </div>`
+    );
+  });
+</script>
+</body>
+</html>

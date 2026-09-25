@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Αποτελέσματα Κβάντισης — Μεταβολή COMET</title>
+
+  <link rel="icon" href="data:,">
+
+  <script src="https://cdn.plot.ly/plotly-3.3.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --background: #f3f5f8;
+      --card: #ffffff;
+      --text: #18212f;
+      --muted: #637083;
+      --border: #dce2ea;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    main {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.7rem, 3vw, 2.4rem);
+      line-height: 1.2;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .card {
+      margin-bottom: 24px;
+      padding: 22px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: end;
+      margin: 18px 0 8px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    select {
+      min-width: 190px;
+      padding: 9px 11px;
+      color: var(--text);
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .chart {
+      width: 100%;
+      min-height: 520px;
+    }
+
+    #agreement-chart {
+      min-height: 560px;
+    }
+
+    .note {
+      margin: 8px 0 0;
+      font-size: 0.88rem;
+    }
+
+    .status {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 14px;
+      color: #7f1d1d;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+    }
+
+    code {
+      padding: 2px 5px;
+      background: #eef2f7;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 700px) {
+      main {
+        width: min(100% - 18px, 1280px);
+        padding-top: 18px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      label {
+        flex: 1 1 100%;
+      }
+
+      select {
+        width: 100%;
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main>
+  <header>
+    <h1>Επίδραση της κβάντισης στη μεταφραστική ποιότητα</h1>
+
+    <p>
+      Μέσες τιμές σε τρία σταθερά σύνολα αξιολόγησης του FLORES-200,
+      καθένα από τα οποία περιλαμβάνει 100 προτάσεις EN→GR και
+      100 προτάσεις GR→EN.
+    </p>
+  </header>
+
+  <section class="card">
+    <h2>Μεταβολή COMET από το πλήρες μοντέλο</h2>
+
+    <p class="note">
+      Η περιοχή δεξιά από το όριο −0.02 αντιστοιχεί στις παραλλαγές
+      με απώλεια COMET έως 0.02.
+    </p>
+
+    <div class="controls">
+      <label>
+        Μοντέλο
+
+        <select id="model-select"></select>
+      </label>
+
+      <label>
+        Ομάδα μεθόδων
+
+        <select id="group-select">
+          <option value="all">Όλες οι ομάδες</option>
+        </select>
+      </label>
+
+      <label>
+        Ταξινόμηση
+
+        <select id="sort-select">
+          <option value="mean-desc">
+            Καλύτερη μέση μεταβολή
+          </option>
+
+          <option value="mean-asc">
+            Χειρότερη μέση μεταβολή
+          </option>
+
+          <option value="vram-desc">
+            Μεγαλύτερη μείωση VRAM
+          </option>
+
+          <option value="name">
+            Όνομα τεχνικής
+          </option>
+        </select>
+      </label>
+    </div>
+
+    <div id="delta-chart" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Συμβιβασμός ποιότητας και μείωσης VRAM</h2>
+
+    <p class="note">
+      Οι πιο επιθυμητές μέθοδοι βρίσκονται ψηλά και δεξιά:
+      μεγάλη μείωση VRAM με μικρή ή μηδενική απώλεια COMET.
+    </p>
+
+    <div id="tradeoff-chart" class="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Συμφωνία μεταξύ COMET και chrF++</h2>
+
+    <p class="note">
+      Κάθε τελεία είναι μία μέθοδος κβάντισης.
+      Όσο πιο κοντά βρίσκονται οι τελείες στη γραμμή τάσης,
+      τόσο πιο παρόμοια είναι η πτώση που δείχνουν οι δύο μετρικές.
+    </p>
+
+    <div class="controls">
+      <label>
+        Κατεύθυνση
+
+        <select id="agreement-direction-select">
+          <option value="EN-GR">EN→GR</option>
+          <option value="GR-EN">GR→EN</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="agreement-chart" class="chart"></div>
+  </section>
+
+  <div id="status" class="status"></div>
+</main>
+
+<script>
+  const DATA_URL = "./master_results.csv";
+  const AGREEMENT_DATA_URL = "./metric_agreement_summary.csv";
+  const QUALITY_LIMIT = -0.02;
+
+  const METRICS = [
+    "GR-EN",
+    "EN-GR",
+    "T/S_GR_EN",
+    "T/S_EN_GR",
+    "RAM_GB",
+    "VRAM_GB"
+  ];
+
+  const modelSelect =
+    document.getElementById("model-select");
+
+  const groupSelect =
+    document.getElementById("group-select");
+
+  const sortSelect =
+    document.getElementById("sort-select");
+
+  const agreementDirectionSelect =
+    document.getElementById("agreement-direction-select");
+
+  const statusBox =
+    document.getElementById("status");
+
+  let data = [];
+  let agreementData = [];
+
+  function toNumber(value) {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed)
+      ? parsed
+      : null;
+  }
+
+  function unique(values) {
+    return [...new Set(values)]
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  function formatNumber(
+    value,
+    signed = false,
+    suffix = ""
+  ) {
+    if (!Number.isFinite(value)) {
+      return "N/A";
+    }
+
+    const rounded =
+      Math.abs(value) < 0.005
+        ? 0
+        : Math.round(
+            (value + Number.EPSILON) * 100
+          ) / 100;
+
+    const text = rounded
+      .toFixed(2)
+      .replace(/\.?0+$/, "");
+
+    const sign =
+      signed && rounded > 0
+        ? "+"
+        : "";
+
+    return `${sign}${text}${suffix}`;
+  }
+
+  function formatLabel(value) {
+    return String(value).replace(
+      /-?\d+\.\d{3,}/g,
+      match => formatNumber(Number(match))
+    );
+  }
+
+  function makeTicks(
+    minimum,
+    maximum,
+    count = 7,
+    signed = false,
+    suffix = ""
+  ) {
+    if (
+      !Number.isFinite(minimum) ||
+      !Number.isFinite(maximum)
+    ) {
+      return {
+        tickvals: [],
+        ticktext: []
+      };
+    }
+
+    if (minimum === maximum) {
+      return {
+        tickvals: [minimum],
+        ticktext: [
+          formatNumber(
+            minimum,
+            signed,
+            suffix
+          )
+        ]
+      };
+    }
+
+    const rawStep =
+      (maximum - minimum) /
+      Math.max(count - 1, 1);
+
+    const magnitude = Math.pow(
+      10,
+      Math.floor(
+        Math.log10(Math.abs(rawStep))
+      )
+    );
+
+    const normalized =
+      rawStep / magnitude;
+
+    let niceStep;
+
+    if (normalized <= 1) {
+      niceStep = 1;
+    } else if (normalized <= 2) {
+      niceStep = 2;
+    } else if (normalized <= 2.5) {
+      niceStep = 2.5;
+    } else if (normalized <= 5) {
+      niceStep = 5;
+    } else {
+      niceStep = 10;
+    }
+
+    const step =
+      niceStep * magnitude;
+
+    const start =
+      Math.ceil(minimum / step) * step;
+
+    const tickvals = [];
+
+    for (
+      let value = start;
+      value <= maximum + step * 0.001;
+      value += step
+    ) {
+      tickvals.push(
+        Number(value.toFixed(12))
+      );
+    }
+
+    if (
+      minimum <= 0 &&
+      maximum >= 0 &&
+      !tickvals.some(
+        value => Math.abs(value) < 1e-10
+      )
+    ) {
+      tickvals.push(0);
+      tickvals.sort((a, b) => a - b);
+    }
+
+    return {
+      tickvals,
+
+      ticktext: tickvals.map(
+        value =>
+          formatNumber(
+            value,
+            signed,
+            suffix
+          )
+      )
+    };
+  }
+
+
+  function loadCsv(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(
+        url,
+        {
+          download: true,
+          header: true,
+          skipEmptyLines: true,
+
+          complete: results => {
+            resolve(results.data);
+          },
+
+          error: error => {
+            reject(
+              new Error(
+                `${url}: ${error.message}`
+              )
+            );
+          }
+        }
+      );
+    });
+  }
+
+  function correlation(
+    xValues,
+    yValues
+  ) {
+    const pairs =
+      xValues
+        .map(
+          (x, index) => [
+            x,
+            yValues[index]
+          ]
+        )
+        .filter(
+          ([x, y]) =>
+            Number.isFinite(x) &&
+            Number.isFinite(y)
+        );
+
+    if (pairs.length < 2) {
+      return null;
+    }
+
+    const meanX =
+      pairs.reduce(
+        (sum, pair) =>
+          sum + pair[0],
+        0
+      ) / pairs.length;
+
+    const meanY =
+      pairs.reduce(
+        (sum, pair) =>
+          sum + pair[1],
+        0
+      ) / pairs.length;
+
+    let numerator = 0;
+    let sumSquaredX = 0;
+    let sumSquaredY = 0;
+
+    pairs.forEach(
+      ([x, y]) => {
+        const dx =
+          x - meanX;
+
+        const dy =
+          y - meanY;
+
+        numerator +=
+          dx * dy;
+
+        sumSquaredX +=
+          dx * dx;
+
+        sumSquaredY +=
+          dy * dy;
+      }
+    );
+
+    const denominator =
+      Math.sqrt(
+        sumSquaredX *
+        sumSquaredY
+      );
+
+    return denominator > 0
+      ? numerator / denominator
+      : null;
+  }
+
+  function linearRegression(
+    xValues,
+    yValues
+  ) {
+    const pairs =
+      xValues
+        .map(
+          (x, index) => [
+            x,
+            yValues[index]
+          ]
+        )
+        .filter(
+          ([x, y]) =>
+            Number.isFinite(x) &&
+            Number.isFinite(y)
+        );
+
+    if (pairs.length < 2) {
+      return null;
+    }
+
+    const meanX =
+      pairs.reduce(
+        (sum, pair) =>
+          sum + pair[0],
+        0
+      ) / pairs.length;
+
+    const meanY =
+      pairs.reduce(
+        (sum, pair) =>
+          sum + pair[1],
+        0
+      ) / pairs.length;
+
+    let numerator = 0;
+    let denominator = 0;
+
+    pairs.forEach(
+      ([x, y]) => {
+        numerator +=
+          (x - meanX) *
+          (y - meanY);
+
+        denominator +=
+          (x - meanX) ** 2;
+      }
+    );
+
+    if (denominator === 0) {
+      return null;
+    }
+
+    const slope =
+      numerator / denominator;
+
+    return {
+      slope,
+
+      intercept:
+        meanY -
+        slope * meanX
+    };
+  }
+
+  function prepareAgreementData(rows) {
+    return rows
+      .filter(
+        row =>
+          row.Base_Model &&
+          row.Quantization &&
+          row.Direction &&
+          row.Quantization !==
+            "Full Model"
+      )
+      .map(
+        row => ({
+          Base_Model:
+            row.Base_Model.trim(),
+
+          Quantization:
+            row.Quantization.trim(),
+
+          Direction:
+            row.Direction.trim(),
+
+          COMET_Overall_Penalty:
+            toNumber(
+              row.COMET_Overall_Penalty
+            ),
+
+          chrF_Overall_Penalty:
+            toNumber(
+              row.chrF_Overall_Penalty
+            )
+        })
+      )
+      .filter(
+        row =>
+          Number.isFinite(
+            row.COMET_Overall_Penalty
+          ) &&
+          Number.isFinite(
+            row.chrF_Overall_Penalty
+          )
+      );
+  }
+
+  function methodGroup(name) {
+    const value =
+      name.toLowerCase();
+
+    if (
+      value.includes("net mngr")
+    ) {
+      return "Network Manager";
+    }
+
+    if (
+      value.includes("2bit") ||
+      value.startsWith("int2")
+    ) {
+      return "2-bit";
+    }
+
+    if (
+      value.includes("4bit") ||
+      value.startsWith("int4") ||
+      value.startsWith("fp4") ||
+      value.startsWith("nf4")
+    ) {
+      return "4-bit";
+    }
+
+    if (
+      value.includes("8bit") ||
+      value.startsWith("int8") ||
+      value.startsWith("fp8")
+    ) {
+      return "8-bit";
+    }
+
+    return "Άλλες μέθοδοι";
+  }
+
+  function aggregateRows(rows) {
+    const groups = new Map();
+
+    rows.forEach(row => {
+      if (
+        !row.Model ||
+        !row.Quantization
+      ) {
+        return;
+      }
+
+      const model =
+        row.Model.trim();
+
+      const quantization =
+        row.Quantization.trim();
+
+      const key =
+        `${model}\u0000${quantization}`;
+
+      if (!groups.has(key)) {
+        const sums = {};
+
+        METRICS.forEach(metric => {
+          sums[metric] = 0;
+          sums[`${metric}_count`] = 0;
+        });
+
+        groups.set(key, {
+          Model: model,
+          Quantization: quantization,
+          sums
+        });
+      }
+
+      const entry =
+        groups.get(key);
+
+      METRICS.forEach(metric => {
+        const value =
+          toNumber(row[metric]);
+
+        if (value !== null) {
+          entry.sums[metric] += value;
+
+          entry.sums[
+            `${metric}_count`
+          ] += 1;
+        }
+      });
+    });
+
+    return [...groups.values()]
+      .map(entry => {
+        const result = {
+          Model: entry.Model,
+          Quantization:
+            entry.Quantization
+        };
+
+        METRICS.forEach(metric => {
+          const count =
+            entry.sums[
+              `${metric}_count`
+            ];
+
+          result[metric] =
+            count
+              ? entry.sums[metric] / count
+              : null;
+        });
+
+        return result;
+      });
+  }
+
+  function prepareData(rows) {
+    const aggregated =
+      aggregateRows(rows);
+
+    const baselines = new Map(
+      aggregated
+        .filter(
+          row =>
+            row.Quantization ===
+            "Full Model"
+        )
+        .map(
+          row => [
+            row.Model,
+            row
+          ]
+        )
+    );
+
+    return aggregated
+      .filter(
+        row =>
+          row.Quantization !==
+          "Full Model"
+      )
+      .filter(
+        row =>
+          baselines.has(row.Model)
+      )
+      .map(row => {
+        const baseline =
+          baselines.get(row.Model);
+
+        const deltaGrEn =
+          row["GR-EN"] -
+          baseline["GR-EN"];
+
+        const deltaEnGr =
+          row["EN-GR"] -
+          baseline["EN-GR"];
+
+        const vramReduction =
+          baseline.VRAM_GB > 0 &&
+          row.VRAM_GB !== null
+            ? (
+                (
+                  baseline.VRAM_GB -
+                  row.VRAM_GB
+                ) /
+                baseline.VRAM_GB
+              ) * 100
+            : null;
+
+        return {
+          Model: row.Model,
+
+          DisplayModel:
+            formatLabel(row.Model),
+
+          Quantization:
+            row.Quantization,
+
+          DisplayQuantization:
+            formatLabel(
+              row.Quantization
+            ),
+
+          Method_Group:
+            methodGroup(
+              row.Quantization
+            ),
+
+          GR_EN:
+            row["GR-EN"],
+
+          EN_GR:
+            row["EN-GR"],
+
+          Delta_GR_EN:
+            deltaGrEn,
+
+          Delta_EN_GR:
+            deltaEnGr,
+
+          Mean_Delta:
+            (
+              deltaGrEn +
+              deltaEnGr
+            ) / 2,
+
+          RAM_GB:
+            row.RAM_GB,
+
+          VRAM_GB:
+            row.VRAM_GB,
+
+          Baseline_VRAM_GB:
+            baseline.VRAM_GB,
+
+          VRAM_Reduction_Pct:
+            vramReduction,
+
+          Time_GR_EN:
+            row["T/S_GR_EN"],
+
+          Time_EN_GR:
+            row["T/S_EN_GR"],
+
+          Slowdown_GR_EN:
+            baseline["T/S_GR_EN"] > 0
+              ? (
+                  row["T/S_GR_EN"] /
+                  baseline["T/S_GR_EN"]
+                )
+              : null,
+
+          Slowdown_EN_GR:
+            baseline["T/S_EN_GR"] > 0
+              ? (
+                  row["T/S_EN_GR"] /
+                  baseline["T/S_EN_GR"]
+                )
+              : null,
+
+          Baseline_GR_EN:
+            baseline["GR-EN"],
+
+          Baseline_EN_GR:
+            baseline["EN-GR"]
+        };
+      })
+      .filter(
+        row =>
+          Number.isFinite(
+            row.Delta_GR_EN
+          ) &&
+          Number.isFinite(
+            row.Delta_EN_GR
+          )
+      );
+  }
+
+  function populateModels() {
+    modelSelect.innerHTML = "";
+
+    unique(
+      data.map(row => row.Model)
+    ).forEach(model => {
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value = model;
+
+      option.textContent =
+        formatLabel(model);
+
+      modelSelect.appendChild(
+        option
+      );
+    });
+  }
+
+  function populateGroups() {
+    const selectedModel =
+      modelSelect.value;
+
+    const currentValue =
+      groupSelect.value;
+
+    const groups = unique(
+      data
+        .filter(
+          row =>
+            row.Model ===
+            selectedModel
+        )
+        .map(
+          row =>
+            row.Method_Group
+        )
+    );
+
+    groupSelect.innerHTML =
+      '<option value="all">Όλες οι ομάδες</option>';
+
+    groups.forEach(group => {
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value = group;
+
+      option.textContent =
+        formatLabel(group);
+
+      groupSelect.appendChild(
+        option
+      );
+    });
+
+    groupSelect.value =
+      groups.includes(currentValue)
+        ? currentValue
+        : "all";
+  }
+
+  function selectedRows() {
+    const model =
+      modelSelect.value;
+
+    const group =
+      groupSelect.value;
+
+    const rows = data.filter(
+      row =>
+        row.Model === model &&
+        (
+          group === "all" ||
+          row.Method_Group === group
+        )
+    );
+
+    return [...rows].sort(
+      (a, b) => {
+        if (
+          sortSelect.value ===
+          "mean-desc"
+        ) {
+          return (
+            b.Mean_Delta -
+            a.Mean_Delta
+          );
+        }
+
+        if (
+          sortSelect.value ===
+          "mean-asc"
+        ) {
+          return (
+            a.Mean_Delta -
+            b.Mean_Delta
+          );
+        }
+
+        if (
+          sortSelect.value ===
+          "vram-desc"
+        ) {
+          return (
+            (
+              b.VRAM_Reduction_Pct ??
+              -Infinity
+            ) -
+            (
+              a.VRAM_Reduction_Pct ??
+              -Infinity
+            )
+          );
+        }
+
+        return a.Quantization
+          .localeCompare(
+            b.Quantization
+          );
+      }
+    );
+  }
+
+  function deltaHover(
+    row,
+    direction
+  ) {
+    const grEn =
+      direction === "GR_EN";
+
+    const score =
+      grEn
+        ? row.GR_EN
+        : row.EN_GR;
+
+    const baseline =
+      grEn
+        ? row.Baseline_GR_EN
+        : row.Baseline_EN_GR;
+
+    const delta =
+      grEn
+        ? row.Delta_GR_EN
+        : row.Delta_EN_GR;
+
+    const time =
+      grEn
+        ? row.Time_GR_EN
+        : row.Time_EN_GR;
+
+    const slowdown =
+      grEn
+        ? row.Slowdown_GR_EN
+        : row.Slowdown_EN_GR;
+
+    return [
+      `<b>${row.DisplayQuantization}</b>`,
+
+      `Ομάδα: ${
+        formatLabel(
+          row.Method_Group
+        )
+      }`,
+
+      `Κατεύθυνση: ${
+        grEn
+          ? "GR→EN"
+          : "EN→GR"
+      }`,
+
+      `COMET: ${
+        formatNumber(score)
+      }`,
+
+      `Πλήρες μοντέλο: ${
+        formatNumber(baseline)
+      }`,
+
+      `ΔCOMET: ${
+        formatNumber(
+          delta,
+          true
+        )
+      }`,
+
+      `VRAM: ${
+        formatNumber(
+          row.VRAM_GB
+        )
+      } GB`,
+
+      `Μείωση VRAM: ${
+        formatNumber(
+          row.VRAM_Reduction_Pct
+        )
+      }%`,
+
+      `Χρόνος: ${
+        formatNumber(time)
+      } s`,
+
+      `Επιβράδυνση: ${
+        formatNumber(slowdown)
+      }×`
+    ].join("<br>");
+  }
+
+  function tradeoffHover(row) {
+    return [
+      `<b>${row.DisplayQuantization}</b>`,
+
+      `Μοντέλο: ${
+        row.DisplayModel
+      }`,
+
+      `Ομάδα: ${
+        formatLabel(
+          row.Method_Group
+        )
+      }`,
+
+      `Μείωση VRAM: ${
+        formatNumber(
+          row.VRAM_Reduction_Pct
+        )
+      }%`,
+
+      `VRAM: ${
+        formatNumber(
+          row.VRAM_GB
+        )
+      } / ${
+        formatNumber(
+          row.Baseline_VRAM_GB
+        )
+      } GB`,
+
+      `Μέση ΔCOMET: ${
+        formatNumber(
+          row.Mean_Delta,
+          true
+        )
+      }`,
+
+      `ΔCOMET GR→EN: ${
+        formatNumber(
+          row.Delta_GR_EN,
+          true
+        )
+      }`,
+
+      `ΔCOMET EN→GR: ${
+        formatNumber(
+          row.Delta_EN_GR,
+          true
+        )
+      }`,
+
+      `Επιβράδυνση GR→EN: ${
+        formatNumber(
+          row.Slowdown_GR_EN
+        )
+      }×`,
+
+      `Επιβράδυνση EN→GR: ${
+        formatNumber(
+          row.Slowdown_EN_GR
+        )
+      }×`
+    ].join("<br>");
+  }
+
+  function renderDeltaChart() {
+    const rows =
+      selectedRows();
+
+    const categories =
+      rows.map(
+        row =>
+          row.DisplayQuantization
+      );
+
+    const values =
+      rows.flatMap(
+        row => [
+          row.Delta_GR_EN,
+          row.Delta_EN_GR
+        ]
+      );
+
+    const minimum =
+      Math.min(
+        ...values,
+        QUALITY_LIMIT,
+        0
+      );
+
+    const maximum =
+      Math.max(
+        ...values,
+        0
+      );
+
+    const padding =
+      Math.max(
+        (
+          maximum -
+          minimum
+        ) * 0.08,
+        0.004
+      );
+
+    const left =
+      minimum - padding;
+
+    const right =
+      maximum + padding;
+
+    const height =
+      Math.max(
+        560,
+        rows.length * 36 + 160
+      );
+
+    const deltaTicks =
+      makeTicks(
+        left,
+        right,
+        8,
+        true
+      );
+
+    const traces = [
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "GR→EN",
+
+        x: rows.map(
+          row =>
+            row.Delta_GR_EN
+        ),
+
+        y: categories,
+
+        hovertext:
+          rows.map(
+            row =>
+              deltaHover(
+                row,
+                "GR_EN"
+              )
+          ),
+
+        hovertemplate:
+          "%{hovertext}<extra></extra>",
+
+        marker: {
+          size: 11,
+          symbol: "circle",
+          color: "#2563eb"
+        }
+      },
+
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "EN→GR",
+
+        x: rows.map(
+          row =>
+            row.Delta_EN_GR
+        ),
+
+        y: categories,
+
+        hovertext:
+          rows.map(
+            row =>
+              deltaHover(
+                row,
+                "EN_GR"
+              )
+          ),
+
+        hovertemplate:
+          "%{hovertext}<extra></extra>",
+
+        marker: {
+          size: 11,
+          symbol: "diamond",
+          color: "#dc2626"
+        }
+      }
+    ];
+
+    Plotly.react(
+      "delta-chart",
+      traces,
+      {
+        height,
+
+        margin: {
+          l: 220,
+          r: 35,
+          t: 68,
+          b: 70
+        },
+
+        title: {
+          text:
+            formatLabel(
+              modelSelect.value
+            ),
+
+          x: 0.01,
+          xanchor: "left",
+
+          font: {
+            size: 19
+          }
+        },
+
+        legend: {
+          orientation: "h",
+          x: 0,
+          y: 1.08
+        },
+
+        xaxis: {
+          title:
+            "Μεταβολή COMET από το πλήρες μοντέλο (ΔCOMET)",
+
+          range: [
+            left,
+            right
+          ],
+
+          tickmode: "array",
+
+          tickvals:
+            deltaTicks.tickvals,
+
+          ticktext:
+            deltaTicks.ticktext,
+
+          showgrid: true,
+          zeroline: false
+        },
+
+        yaxis: {
+          categoryorder: "array",
+
+          categoryarray:
+            [...categories]
+              .reverse(),
+
+          automargin: true
+        },
+
+        hovermode:
+          "closest",
+
+        shapes: [
+          {
+            type: "rect",
+
+            x0: QUALITY_LIMIT,
+            x1: right,
+
+            y0: 0,
+            y1: 1,
+
+            xref: "x",
+            yref: "paper",
+
+            fillcolor:
+              "rgba(22,163,74,0.07)",
+
+            line: {
+              width: 0
+            },
+
+            layer: "below"
+          },
+
+          {
+            type: "rect",
+
+            x0: left,
+            x1: QUALITY_LIMIT,
+
+            y0: 0,
+            y1: 1,
+
+            xref: "x",
+            yref: "paper",
+
+            fillcolor:
+              "rgba(220,38,38,0.05)",
+
+            line: {
+              width: 0
+            },
+
+            layer: "below"
+          },
+
+          {
+            type: "line",
+
+            x0: 0,
+            x1: 0,
+
+            y0: 0,
+            y1: 1,
+
+            xref: "x",
+            yref: "paper",
+
+            line: {
+              color: "#334155",
+              width: 2,
+              dash: "dash"
+            }
+          },
+
+          {
+            type: "line",
+
+            x0: QUALITY_LIMIT,
+            x1: QUALITY_LIMIT,
+
+            y0: 0,
+            y1: 1,
+
+            xref: "x",
+            yref: "paper",
+
+            line: {
+              color: "#15803d",
+              width: 2,
+              dash: "dot"
+            }
+          }
+        ],
+
+        annotations: [
+          {
+            text:
+              `Όριο απώλειας ${
+                formatNumber(
+                  QUALITY_LIMIT
+                )
+              }`,
+
+            x: QUALITY_LIMIT -0.045,
+            y: 0.045,
+
+            xref: "x",
+            yref: "paper",
+
+            showarrow: false,
+
+            font: {
+              size: 11,
+              color: "#15803d"
+            }
+          },
+
+          {
+            text:
+              "Ίδια ή υψηλότερη βαθμολογία",
+
+            x: 1.020,
+            y: 1.045,
+
+            xref: "paper",
+            yref: "paper",
+
+            xanchor: "right",
+
+            showarrow: false,
+
+            font: {
+              size: 11
+            }
+          }
+        ],
+
+        paper_bgcolor:
+          "#ffffff",
+
+        plot_bgcolor:
+          "#ffffff"
+      },
+
+      {
+        responsive: true,
+
+        displaylogo: false,
+
+        modeBarButtonsToRemove: [
+          "lasso2d",
+          "select2d"
+        ]
+      }
+    );
+  }
+
+  function renderTradeoffChart() {
+    const rows =
+      data.filter(
+        row =>
+          row.VRAM_Reduction_Pct !==
+            null &&
+          Number.isFinite(
+            row.Mean_Delta
+          )
+      );
+
+    const traces =
+      unique(
+        rows.map(
+          row => row.Model
+        )
+      ).map(model => {
+        const modelRows =
+          rows.filter(
+            row =>
+              row.Model === model
+          );
+
+        return {
+          type: "scatter",
+          mode: "markers",
+
+          name:
+            formatLabel(model),
+
+          x: modelRows.map(
+            row =>
+              row.VRAM_Reduction_Pct
+          ),
+
+          y: modelRows.map(
+            row =>
+              row.Mean_Delta
+          ),
+
+          hovertext:
+            modelRows.map(
+              tradeoffHover
+            ),
+
+          hovertemplate:
+            "%{hovertext}<extra></extra>",
+
+          marker: {
+            size: 10,
+            opacity: 0.78,
+
+            line: {
+              color: "#ffffff",
+              width: 1
+            }
+          }
+        };
+      });
+
+    const xValues =
+      rows.map(
+        row =>
+          row.VRAM_Reduction_Pct
+      );
+
+    const yValues =
+      rows.map(
+        row =>
+          row.Mean_Delta
+      );
+
+    const xMinimum =
+      Math.min(
+        0,
+        ...xValues
+      );
+
+    const xMaximum =
+      Math.max(
+        0,
+        ...xValues
+      );
+
+    const xPadding =
+      Math.max(
+        (
+          xMaximum -
+          xMinimum
+        ) * 0.05,
+        1
+      );
+
+    const tradeoffXMin =
+      xMinimum - xPadding;
+
+    const tradeoffXMax =
+      xMaximum + xPadding;
+
+    const yMinimum =
+      Math.min(
+        ...yValues,
+        QUALITY_LIMIT,
+        0
+      );
+
+    const yMaximum =
+      Math.max(
+        ...yValues,
+        0
+      );
+
+    const yPadding =
+      Math.max(
+        (
+          yMaximum -
+          yMinimum
+        ) * 0.08,
+        0.004
+      );
+
+    const tradeoffYMin =
+      yMinimum - yPadding;
+
+    const tradeoffYMax =
+      yMaximum + yPadding;
+
+    const tradeoffXTicks =
+      makeTicks(
+        tradeoffXMin,
+        tradeoffXMax,
+        7,
+        false,
+        "%"
+      );
+
+    const tradeoffYTicks =
+      makeTicks(
+        tradeoffYMin,
+        tradeoffYMax,
+        7,
+        true
+      );
+
+    Plotly.react(
+      "tradeoff-chart",
+      traces,
+      {
+        height: 620,
+
+        margin: {
+          l: 80,
+          r: 35,
+          t: 35,
+          b: 75
+        },
+
+        legend: {
+          orientation: "h",
+          x: 0,
+          y: 1.06
+        },
+
+        xaxis: {
+          title:
+            "Μείωση VRAM σε σχέση με το πλήρες μοντέλο (%)",
+
+          range: [
+            tradeoffXMin,
+            tradeoffXMax
+          ],
+
+          tickmode: "array",
+
+          tickvals:
+            tradeoffXTicks.tickvals,
+
+          ticktext:
+            tradeoffXTicks.ticktext,
+
+          showgrid: true,
+          zeroline: false
+        },
+
+        yaxis: {
+          title:
+            "Μέση μεταβολή COMET",
+
+          range: [
+            tradeoffYMin,
+            tradeoffYMax
+          ],
+
+          tickmode: "array",
+
+          tickvals:
+            tradeoffYTicks.tickvals,
+
+          ticktext:
+            tradeoffYTicks.ticktext,
+
+          showgrid: true,
+          zeroline: false
+        },
+
+        hovermode:
+          "closest",
+
+        shapes: [
+          {
+            type: "rect",
+
+            x0: 0,
+            x1: 1,
+
+            y0: QUALITY_LIMIT,
+            y1: tradeoffYMax,
+
+            xref: "paper",
+            yref: "y",
+
+            fillcolor:
+              "rgba(22,163,74,0.07)",
+
+            line: {
+              width: 0
+            },
+
+            layer: "below"
+          },
+
+          {
+            type: "line",
+
+            x0: 0,
+            x1: 1,
+
+            y0: 0,
+            y1: 0,
+
+            xref: "paper",
+            yref: "y",
+
+            line: {
+              color: "#334155",
+              width: 2,
+              dash: "dash"
+            }
+          },
+
+          {
+            type: "line",
+
+            x0: 0,
+            x1: 1,
+
+            y0: QUALITY_LIMIT,
+            y1: QUALITY_LIMIT,
+
+            xref: "paper",
+            yref: "y",
+
+            line: {
+              color: "#15803d",
+              width: 2,
+              dash: "dot"
+            }
+          }
+        ],
+
+        annotations: [
+          {
+            text:
+              `Απώλεια έως ${
+                formatNumber(
+                  Math.abs(
+                    QUALITY_LIMIT
+                  )
+                )
+              }`,
+
+            x: 1,
+            y: QUALITY_LIMIT,
+
+            xref: "paper",
+            yref: "y",
+
+            xanchor: "right",
+            yshift: 12,
+
+            showarrow: false,
+
+            font: {
+              size: 11,
+              color: "#15803d"
+            }
+          }
+        ],
+
+        paper_bgcolor:
+          "#ffffff",
+
+        plot_bgcolor:
+          "#ffffff"
+      },
+
+      {
+        responsive: true,
+
+        displaylogo: false,
+
+        modeBarButtonsToRemove: [
+          "lasso2d",
+          "select2d"
+        ]
+      }
+    );
+  }
+
+
+  function renderAgreementChart() {
+    const selectedModel =
+      modelSelect.value;
+
+    const selectedGroup =
+      groupSelect.value;
+
+    const selectedDirection =
+      agreementDirectionSelect.value;
+
+    const rows =
+      agreementData.filter(
+        row =>
+          row.Base_Model ===
+            selectedModel &&
+          row.Direction ===
+            selectedDirection &&
+          (
+            selectedGroup === "all" ||
+            methodGroup(
+              row.Quantization
+            ) === selectedGroup
+          )
+      );
+
+    const xValues =
+      rows.map(
+        row =>
+          row.COMET_Overall_Penalty
+      );
+
+    const yValues =
+      rows.map(
+        row =>
+          row.chrF_Overall_Penalty
+      );
+
+    const r =
+      correlation(
+        xValues,
+        yValues
+      );
+
+    const regression =
+      linearRegression(
+        xValues,
+        yValues
+      );
+
+    const traces = [
+      {
+        type: "scatter",
+        mode: "markers",
+        name: "Μέθοδοι",
+
+        x: xValues,
+        y: yValues,
+
+        customdata:
+          rows.map(
+            row => [
+              formatLabel(
+                row.Quantization
+              )
+            ]
+          ),
+
+        marker: {
+          size: 10,
+          opacity: 0.8,
+
+          line: {
+            color: "#ffffff",
+            width: 1
+          }
+        },
+
+        hovertemplate:
+          "<b>%{customdata[0]}</b><br>" +
+          "Πτώση COMET: %{x:.3f}<br>" +
+          "Πτώση chrF++: %{y:.3f}" +
+          "<extra></extra>"
+      }
+    ];
+
+    if (
+      regression &&
+      xValues.length
+    ) {
+      const minimumX =
+        Math.min(...xValues);
+
+      const maximumX =
+        Math.max(...xValues);
+
+      traces.push({
+        type: "scatter",
+        mode: "lines",
+        name: "Γραμμή τάσης",
+
+        x: [
+          minimumX,
+          maximumX
+        ],
+
+        y: [
+          regression.intercept +
+            regression.slope *
+            minimumX,
+
+          regression.intercept +
+            regression.slope *
+            maximumX
+        ],
+
+        line: {
+          color: "#94a3b8",
+          width: 2,
+          dash: "dot"
+        },
+
+        hoverinfo: "skip"
+      });
+    }
+
+    Plotly.react(
+      "agreement-chart",
+      traces,
+      {
+        height: 560,
+
+        margin: {
+          l: 80,
+          r: 35,
+          t: 60,
+          b: 75
+        },
+
+        title: {
+          text:
+            `${formatLabel(
+              selectedModel
+            )} — ${
+              selectedDirection ===
+              "EN-GR"
+                ? "EN→GR"
+                : "GR→EN"
+            }`,
+
+          x: 0.01,
+          xanchor: "left",
+
+          font: {
+            size: 18
+          }
+        },
+
+        legend: {
+          orientation: "h",
+          x: 0,
+          y: 1.08
+        },
+
+        annotations: [
+          {
+            xref: "paper",
+            yref: "paper",
+            x: 0.02,
+            y: 0.98,
+
+            text:
+              Number.isFinite(r)
+                ? `r = ${r.toFixed(4)}`
+                : "r = N/A",
+
+            showarrow: false,
+
+            font: {
+              size: 16
+            }
+          }
+        ],
+
+        xaxis: {
+          title:
+            "Πτώση COMET από το πλήρες μοντέλο",
+
+          tickformat: ".3~f",
+          showgrid: true,
+          zeroline: true
+        },
+
+        yaxis: {
+          title:
+            "Πτώση chrF++ από το πλήρες μοντέλο",
+
+          tickformat: ".3~f",
+          showgrid: true,
+          zeroline: true
+        },
+
+        hovermode:
+          "closest",
+
+        paper_bgcolor:
+          "#ffffff",
+
+        plot_bgcolor:
+          "#ffffff"
+      },
+
+      {
+        responsive: true,
+        displaylogo: false,
+
+        modeBarButtonsToRemove: [
+          "lasso2d",
+          "select2d"
+        ]
+      }
+    );
+  }
+
+  function render() {
+    renderDeltaChart();
+    renderTradeoffChart();
+    renderAgreementChart();
+  }
+
+  modelSelect.addEventListener(
+    "change",
+    () => {
+      populateGroups();
+      renderDeltaChart();
+      renderAgreementChart();
+    }
+  );
+
+  groupSelect.addEventListener(
+    "change",
+    () => {
+      renderDeltaChart();
+      renderAgreementChart();
+    }
+  );
+
+  sortSelect.addEventListener(
+    "change",
+    renderDeltaChart
+  );
+
+  agreementDirectionSelect.addEventListener(
+    "change",
+    renderAgreementChart
+  );
+
+  async function start() {
+    try {
+      const [
+        masterRows,
+        agreementRows
+      ] = await Promise.all([
+        loadCsv(DATA_URL),
+        loadCsv(
+          AGREEMENT_DATA_URL
+        )
+      ]);
+
+      data =
+        prepareData(
+          masterRows
+        );
+
+      agreementData =
+        prepareAgreementData(
+          agreementRows
+        );
+
+      if (!data.length) {
+        statusBox.style.display =
+          "block";
+
+        statusBox.textContent =
+          "Δεν βρέθηκαν κβαντισμένες παραλλαγές με αντίστοιχο Full Model.";
+
+        return;
+      }
+
+      populateModels();
+      populateGroups();
+      render();
+    } catch (error) {
+      statusBox.style.display =
+        "block";
+
+      statusBox.innerHTML =
+        "Δεν ήταν δυνατή η φόρτωση των CSV. " +
+        "Βεβαιώσου ότι τα <code>master_results.csv</code> και " +
+        "<code>metric_agreement_summary.csv</code> βρίσκονται στον ίδιο " +
+        "φάκελο με το <code>index.html</code>.<br><br>" +
+        error.message;
+    }
+  }
+
+  start();
+</script>
+</body>
+</html>

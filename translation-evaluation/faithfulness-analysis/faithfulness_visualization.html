@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ανάλυση πιστότητας μετάφρασης</title>
+  <link rel="icon" href="data:,">
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --background: #f4f6f9;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --border: #e1e6ee;
+      --accent: #3454d1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      padding: 30px 34px 23px;
+      color: #ffffff;
+      background: linear-gradient(120deg, #172033, #2b3a67);
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.75rem, 3vw, 2.3rem);
+    }
+
+    header p {
+      max-width: 950px;
+      margin: 0;
+      color: #d7def2;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1500px, calc(100% - 30px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .controls,
+    .summary,
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      box-shadow: 0 5px 18px rgba(20, 32, 60, 0.05);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 14px;
+      padding: 17px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 11px;
+      color: var(--text);
+      background: #ffffff;
+      border: 1px solid #ccd3df;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(220px, 1fr));
+      gap: 1px;
+      margin: 16px 0;
+      overflow: hidden;
+      background: var(--border);
+    }
+
+    .stat {
+      padding: 15px 18px;
+      background: #ffffff;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.77rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 6px;
+      font-size: 1rem;
+      font-weight: 750;
+      line-height: 1.5;
+    }
+
+    .stat-small {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .panel {
+      margin-bottom: 18px;
+      padding: 18px;
+    }
+
+    .panel h2 {
+      margin: 0 0 5px;
+      font-size: 1.12rem;
+    }
+
+    .panel p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+
+    .plot {
+      width: 100%;
+      min-height: 520px;
+    }
+
+    #overview-heatmap {
+      min-height: 680px;
+    }
+
+    #bootstrap-bars {
+      min-height: 480px;
+    }
+
+    #sentence-distribution {
+      min-height: 520px;
+    }
+
+    .distribution-status {
+      display: flex;
+      min-height: 300px;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .distribution-status.error {
+      color: #7f1d1d;
+    }
+
+    .note {
+      padding: 13px 15px;
+      color: #344054;
+      background: #eef2ff;
+      border-left: 4px solid var(--accent);
+      border-radius: 8px;
+      font-size: 0.86rem;
+      line-height: 1.5;
+    }
+
+    .status {
+      display: none;
+      margin-top: 16px;
+      padding: 14px;
+      color: #7f1d1d;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+    }
+
+    code {
+      padding: 2px 5px;
+      background: #e8ecf4;
+      border-radius: 4px;
+    }
+
+    @media (max-width: 1050px) {
+      .controls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 620px) {
+      .controls,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        padding: 24px 18px;
+      }
+
+      main {
+        width: min(100% - 18px, 1500px);
+        padding-top: 14px;
+      }
+
+      .panel {
+        padding: 13px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>Ανάλυση πιστότητας μετάφρασης</h1>
+  <p>
+    Επισκόπηση του πρόσθετου κινδύνου που εισάγει η κβάντιση,
+    με σύγκριση EN→GR και GR→EN.
+  </p>
+</header>
+
+<main>
+  <section class="controls">
+    <label>
+      Μοντέλο
+      <select id="model-select"></select>
+    </label>
+
+    <label>
+      Επιλεγμένη μέθοδος
+      <select id="method-select"></select>
+    </label>
+
+    <label>
+      Ομάδα κινδύνων
+      <select id="risk-group-select">
+        <option value="core">Κύριοι κίνδυνοι</option>
+        <option value="alignment">Στοίχιση και γλώσσα</option>
+      </select>
+    </label>
+
+    <label>
+      Μέτρηση κατανομής
+      <select id="comparison-metric-select">
+        <option value="Hallucination_Risk">Προσθήκη περιεχομένου</option>
+        <option value="Omission_Risk">Παράλειψη περιεχομένου</option>
+        <option value="Degeneration_Risk">Επανάληψη / εκφυλισμός</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="summary">
+    <div class="stat">
+      <div class="stat-label">EN→GR — επιλεγμένη μέθοδος</div>
+      <div class="stat-value" id="summary-en-gr">—</div>
+      <div class="stat-small" id="significance-en-gr">—</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">GR→EN — επιλεγμένη μέθοδος</div>
+      <div class="stat-value" id="summary-gr-en">—</div>
+      <div class="stat-small" id="significance-gr-en">—</div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Επισκόπηση πρόσθετου κινδύνου</h2>
+    <p>
+      Οι μέθοδοι ταξινομούνται από τη μεγαλύτερη προς τη μικρότερη
+      συνολική μεταβολή. Κόκκινο σημαίνει περισσότερο κίνδυνο από το
+      Full Model και μπλε λιγότερο.
+    </p>
+
+    <div id="overview-heatmap" class="plot"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Επιλεγμένη μέθοδος και διαστήματα εμπιστοσύνης</h2>
+    <p>
+      Οι μπάρες δείχνουν τη μέση διαφορά από το Full Model.
+      Οι γραμμές δείχνουν το 95% διάστημα εμπιστοσύνης.
+    </p>
+
+    <div id="bootstrap-bars" class="plot"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Κατανομή κινδύνου ανά πρόταση</h2>
+    <p>
+      Σύγκριση του Full Model με την επιλεγμένη μέθοδο
+      στις ίδιες προτάσεις αξιολόγησης.
+    </p>
+
+    <div id="sentence-distribution" class="plot">
+      <div class="distribution-status">
+        Προετοιμασία φόρτωσης των δεδομένων ανά πρόταση…
+      </div>
+    </div>
+  </section>
+
+  <div class="note">
+    Οι δείκτες αποτελούν αυτόματες ενδείξεις κινδύνου και όχι
+    επιβεβαιωμένα σφάλματα. Θετική διαφορά σημαίνει υψηλότερο κίνδυνο
+    από το Full Model.
+  </div>
+
+  <div id="status" class="status"></div>
+</main>
+
+<script>
+  const FILES = {
+    system: "./faithfulness_system_summary.csv",
+    bootstrap: "./faithfulness_paired_bootstrap.csv",
+    sentences: "./faithfulness_sentence_metrics.csv"
+  };
+
+  const RISK_GROUPS = {
+    core: [
+      {
+        field: "Excess_Hallucination_Risk",
+        label: "Προσθήκη περιεχομένου"
+      },
+      {
+        field: "Excess_Omission_Risk",
+        label: "Παράλειψη περιεχομένου"
+      },
+      {
+        field: "Excess_Degeneration_Risk",
+        label: "Επανάληψη / εκφυλισμός"
+      }
+    ],
+    alignment: [
+      {
+        field: "Excess_Unsupported_Target_Ratio",
+        label: "Μη υποστηριζόμενο κείμενο στόχου"
+      },
+      {
+        field: "Excess_Uncovered_Source_Ratio",
+        label: "Ακάλυπτο κείμενο πηγής"
+      },
+      {
+        field: "Excess_Off_Target_Score",
+        label: "Λάθος γλώσσα"
+      },
+      {
+        field: "Excess_Source_Token_Copy_Ratio",
+        label: "Αντιγραφή κειμένου πηγής"
+      }
+    ]
+  };
+
+  const BOOTSTRAP_METRICS = [
+    {
+      id: "Hallucination_Risk",
+      label: "Προσθήκη περιεχομένου"
+    },
+    {
+      id: "Omission_Risk",
+      label: "Παράλειψη περιεχομένου"
+    },
+    {
+      id: "Expanded_Hallucination_Risk",
+      label: "Διευρυμένη ένδειξη προσθήκης"
+    },
+    {
+      id: "Expanded_Omission_Risk",
+      label: "Διευρυμένη ένδειξη παράλειψης"
+    }
+  ];
+
+  const COMPARISON_METRIC_LABELS = {
+    Hallucination_Risk: "Κίνδυνος προσθήκης περιεχομένου",
+    Omission_Risk: "Κίνδυνος παράλειψης περιεχομένου",
+    Degeneration_Risk: "Κίνδυνος επανάληψης / εκφυλισμού"
+  };
+
+  const modelSelect = document.getElementById("model-select");
+  const methodSelect = document.getElementById("method-select");
+  const riskGroupSelect = document.getElementById("risk-group-select");
+  const comparisonMetricSelect =
+    document.getElementById("comparison-metric-select");
+  const statusBox = document.getElementById("status");
+
+  let systemRows = [];
+  let bootstrapRows = [];
+  let sentenceRows = [];
+  let sentenceDataReady = false;
+  let sentenceLoadError = null;
+
+  function number(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function booleanValue(value) {
+    return value === true ||
+      value === 1 ||
+      value === "1" ||
+      String(value).toLowerCase() === "true";
+  }
+
+  function unique(values) {
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  }
+
+  function quantile(values, q) {
+    const sorted = values
+      .filter(Number.isFinite)
+      .sort((a, b) => a - b);
+
+    if (!sorted.length) {
+      return null;
+    }
+
+    const position = (sorted.length - 1) * q;
+    const lower = Math.floor(position);
+    const upper = Math.ceil(position);
+
+    if (lower === upper) {
+      return sorted[lower];
+    }
+
+    const weight = position - lower;
+
+    return sorted[lower] * (1 - weight) +
+      sorted[upper] * weight;
+  }
+
+  // All visible numeric labels and tooltips pass through this
+  // formatter: maximum 3 decimals, with trailing zeros removed.
+  function format(value, signed = false) {
+    if (!Number.isFinite(value)) {
+      return "N/A";
+    }
+
+    const clean = Math.abs(value) < 0.0005 ? 0 : value;
+    const text = clean.toFixed(3).replace(/\.?0+$/, "");
+
+    return signed && clean > 0
+      ? `+${text}`
+      : text;
+  }
+
+  function loadCsv(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(url, {
+        download: true,
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: result => resolve(result.data),
+        error: reject
+      });
+    });
+  }
+
+  function normalizeSystem(data) {
+    return data
+      .filter(row =>
+        row.Base_Model &&
+        row.Quantization &&
+        row.Direction
+      )
+      .map(row => {
+        const normalized = {
+          ...row,
+          Is_Full_Model: booleanValue(row.Is_Full_Model)
+        };
+
+        [
+          "Hallucination_Risk",
+          "Omission_Risk",
+          "Degeneration_Risk",
+          "COMET",
+          "chrF",
+          "Excess_Hallucination_Risk",
+          "Excess_Omission_Risk",
+          "Excess_Degeneration_Risk",
+          "Excess_Unsupported_Target_Ratio",
+          "Excess_Uncovered_Source_Ratio",
+          "Excess_Off_Target_Score",
+          "Excess_Source_Token_Copy_Ratio"
+        ].forEach(field => {
+          normalized[field] = number(row[field]);
+        });
+
+        return normalized;
+      });
+  }
+
+  function normalizeBootstrap(data) {
+    return data
+      .filter(row =>
+        row.Base_Model &&
+        row.Quantization &&
+        row.Direction &&
+        row.Metric
+      )
+      .map(row => ({
+        ...row,
+        Paired_Sentences: number(row.Paired_Sentences),
+        Excess_Mean: number(row.Excess_Mean),
+        CI95_Lower: number(row.CI95_Lower),
+        CI95_Upper: number(row.CI95_Upper)
+      }));
+  }
+
+
+  function populateModels() {
+    const models = unique(
+      systemRows.map(row => row.Base_Model)
+    );
+
+    modelSelect.innerHTML = "";
+
+    models.forEach(model => {
+      const option = document.createElement("option");
+      option.value = model;
+      option.textContent = model;
+      modelSelect.appendChild(option);
+    });
+
+    const preferred = models.find(model =>
+      model.includes("Krikri")
+    );
+
+    if (preferred) {
+      modelSelect.value = preferred;
+    }
+  }
+
+  function methodsForModel() {
+    const sets = ["EN-GR", "GR-EN"].map(direction =>
+      new Set(
+        systemRows
+          .filter(row =>
+            row.Base_Model === modelSelect.value &&
+            row.Direction === direction &&
+            !row.Is_Full_Model
+          )
+          .map(row => row.Quantization)
+      )
+    );
+
+    if (!sets.length) {
+      return [];
+    }
+
+    return [...sets[0]]
+      .filter(method => sets[1].has(method))
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  function populateMethods() {
+    const previous = methodSelect.value;
+    const methods = methodsForModel();
+
+    methodSelect.innerHTML = "";
+
+    methods.forEach(method => {
+      const option = document.createElement("option");
+      option.value = method;
+      option.textContent = method;
+      methodSelect.appendChild(option);
+    });
+
+    const preferredMethods = [
+      previous,
+      "Int4 AWQ",
+      "Fp4 AWQ",
+      "Nf4",
+      methods[0]
+    ];
+
+    const selected = preferredMethods.find(method =>
+      methods.includes(method)
+    );
+
+    if (selected) {
+      methodSelect.value = selected;
+    }
+  }
+
+  function systemRow(direction, method) {
+    return systemRows.find(row =>
+      row.Base_Model === modelSelect.value &&
+      row.Direction === direction &&
+      row.Quantization === method
+    );
+  }
+
+  function bootstrapRow(direction, metric) {
+    return bootstrapRows.find(row =>
+      row.Base_Model === modelSelect.value &&
+      row.Direction === direction &&
+      row.Quantization === methodSelect.value &&
+      row.Metric === metric
+    );
+  }
+
+  function significantMetricCount(direction) {
+    const rows = BOOTSTRAP_METRICS
+      .map(metric => bootstrapRow(direction, metric.id))
+      .filter(row =>
+        row &&
+        Number.isFinite(row.CI95_Lower) &&
+        Number.isFinite(row.CI95_Upper)
+      );
+
+    const significant = rows.filter(row =>
+      row.CI95_Lower > 0 ||
+      row.CI95_Upper < 0
+    ).length;
+
+    return {
+      significant,
+      total: rows.length
+    };
+  }
+
+  function updateSummary() {
+    [
+      ["EN-GR", "summary-en-gr", "significance-en-gr"],
+      ["GR-EN", "summary-gr-en", "significance-gr-en"]
+    ].forEach(([direction, valueId, significanceId]) => {
+      const row = systemRow(direction, methodSelect.value);
+      const valueElement = document.getElementById(valueId);
+      const significanceElement =
+        document.getElementById(significanceId);
+
+      if (!row) {
+        valueElement.textContent = "Δεν υπάρχουν δεδομένα";
+        significanceElement.textContent = "—";
+        return;
+      }
+
+      valueElement.textContent =
+        `Προσθήκη: ${format(
+          row.Excess_Hallucination_Risk,
+          true
+        )} · Παράλειψη: ${format(
+          row.Excess_Omission_Risk,
+          true
+        )} · Επανάληψη: ${format(
+          row.Excess_Degeneration_Risk,
+          true
+        )}`;
+
+      const count = significantMetricCount(direction);
+
+      significanceElement.textContent = count.total
+        ? `${count.significant} από ${count.total} βασικές διαφορές ` +
+          "έχουν διάστημα εμπιστοσύνης που δεν περιλαμβάνει το 0."
+        : "Δεν υπάρχουν διαθέσιμα διαστήματα εμπιστοσύνης.";
+    });
+  }
+
+  function buildOverviewRows() {
+    const metrics = RISK_GROUPS[riskGroupSelect.value];
+    const methods = methodsForModel();
+
+    return methods
+      .map(method => {
+        const values = [];
+
+        ["EN-GR", "GR-EN"].forEach(direction => {
+          const row = systemRow(direction, method);
+
+          metrics.forEach(metric => {
+            values.push(row ? row[metric.field] : null);
+          });
+        });
+
+        const finite = values.filter(Number.isFinite);
+
+        return {
+          method,
+          values,
+          meanAbs: finite.length
+            ? finite.reduce(
+                (sum, value) => sum + Math.abs(value),
+                0
+              ) / finite.length
+            : 0
+        };
+      })
+      .sort((a, b) => b.meanAbs - a.meanAbs);
+  }
+
+  function renderOverview() {
+    const metrics = RISK_GROUPS[riskGroupSelect.value];
+    const overviewRows = buildOverviewRows();
+
+    const columns = [];
+
+    ["EN-GR", "GR-EN"].forEach(direction => {
+      metrics.forEach(metric => {
+        columns.push({
+          direction,
+          field: metric.field,
+          label:
+            `${direction === "EN-GR" ? "EN→GR" : "GR→EN"}<br>` +
+            metric.label
+        });
+      });
+    });
+
+    const z = overviewRows.map(item =>
+      columns.map((column, index) =>
+        item.values[index]
+      )
+    );
+
+    const text = z.map(row =>
+      row.map(value =>
+        Number.isFinite(value)
+          ? format(value, true)
+          : ""
+      )
+    );
+
+    const absoluteValues = z
+      .flat()
+      .filter(Number.isFinite)
+      .map(Math.abs);
+
+    const robustLimit = quantile(absoluteValues, 0.95);
+    const limit = Math.max(robustLimit || 0, 0.001);
+    const height = Math.max(
+      680,
+      overviewRows.length * 31 + 180
+    );
+
+    Plotly.react("overview-heatmap", [{
+      type: "heatmap",
+      x: columns.map(column => column.label),
+      y: overviewRows.map(item => item.method),
+      z,
+      text,
+      customdata: z.map(row =>
+        row.map(value => format(value, true))
+      ),
+      texttemplate: "%{text}",
+      textfont: {
+        size: 10
+      },
+      zmid: 0,
+      zmin: -limit,
+      zmax: limit,
+      colorscale: [
+        [0, "#2166ac"],
+        [0.25, "#92c5de"],
+        [0.5, "#f7f7f7"],
+        [0.75, "#f4a582"],
+        [1, "#b2182b"]
+      ],
+      colorbar: {
+        title: {
+          text: "Διαφορά από<br>Full Model"
+        },
+        tickformat: ".3~f",
+        thickness: 18
+      },
+      hovertemplate:
+        "<b>%{y}</b><br>" +
+        "%{x}<br>" +
+        "Διαφορά από Full Model: %{customdata}" +
+        "<extra></extra>"
+    }], {
+      height,
+      margin: {
+        l: 235,
+        r: 100,
+        t: 25,
+        b: 125
+      },
+      xaxis: {
+        automargin: true,
+        tickangle: -25,
+        tickfont: {
+          size: 10
+        }
+      },
+      yaxis: {
+        autorange: "reversed",
+        automargin: true,
+        tickfont: {
+          size: 11
+        }
+      },
+      hoverlabel: {
+        align: "left"
+      },
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff"
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: [
+        "lasso2d",
+        "select2d"
+      ]
+    });
+  }
+
+  function bootstrapTrace(direction) {
+    const rows = BOOTSTRAP_METRICS.map(metric => {
+      const row = bootstrapRow(direction, metric.id);
+
+      return {
+        metric,
+        mean: row ? row.Excess_Mean : null,
+        lower: row ? row.CI95_Lower : null,
+        upper: row ? row.CI95_Upper : null,
+        count: row ? row.Paired_Sentences : null
+      };
+    });
+
+    return {
+      type: "bar",
+      orientation: "h",
+      name: direction === "EN-GR" ? "EN→GR" : "GR→EN",
+      y: rows.map(item => item.metric.label),
+      x: rows.map(item => item.mean),
+      customdata: rows.map(item => [
+        format(item.mean, true),
+        format(item.lower, true),
+        format(item.upper, true),
+        Number.isFinite(item.count)
+          ? Math.round(item.count).toLocaleString("el-GR")
+          : "N/A"
+      ]),
+      error_x: {
+        type: "data",
+        symmetric: false,
+        array: rows.map(item =>
+          Number.isFinite(item.upper) &&
+          Number.isFinite(item.mean)
+            ? Math.max(item.upper - item.mean, 0)
+            : 0
+        ),
+        arrayminus: rows.map(item =>
+          Number.isFinite(item.lower) &&
+          Number.isFinite(item.mean)
+            ? Math.max(item.mean - item.lower, 0)
+            : 0
+        ),
+        thickness: 1.4,
+        width: 5
+      },
+      hovertemplate:
+        "<b>%{y}</b><br>" +
+        `${direction === "EN-GR" ? "EN→GR" : "GR→EN"}<br>` +
+        "Μέση διαφορά: %{customdata[0]}<br>" +
+        "95% ΔΕ: %{customdata[1]} έως " +
+        "%{customdata[2]}<br>" +
+        "Προτάσεις: %{customdata[3]}" +
+        "<extra></extra>"
+    };
+  }
+
+  function renderBootstrap() {
+    Plotly.react("bootstrap-bars", [
+      bootstrapTrace("EN-GR"),
+      bootstrapTrace("GR-EN")
+    ], {
+      height: 480,
+      margin: {
+        l: 235,
+        r: 45,
+        t: 35,
+        b: 75
+      },
+      barmode: "group",
+      bargap: 0.28,
+      legend: {
+        orientation: "h",
+        x: 0,
+        y: 1.12
+      },
+      xaxis: {
+        title: "Μέση διαφορά από το Full Model",
+        tickformat: ".3~f",
+        zeroline: true,
+        zerolinewidth: 2,
+        showgrid: true
+      },
+      yaxis: {
+        autorange: "reversed",
+        automargin: true
+      },
+      hoverlabel: {
+        align: "left"
+      },
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff"
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: [
+        "lasso2d",
+        "select2d"
+      ]
+    });
+  }
+
+
+
+  function setDistributionStatus(message, isError = false) {
+    const container =
+      document.getElementById("sentence-distribution");
+
+    container.innerHTML =
+      `<div class="distribution-status${isError ? " error" : ""}">` +
+      message +
+      "</div>";
+  }
+
+  function normalizeSentenceRow(row) {
+    if (
+      !row.Base_Model ||
+      !row.Quantization ||
+      !row.Direction
+    ) {
+      return null;
+    }
+
+    return {
+      Base_Model: row.Base_Model,
+      Quantization: row.Quantization,
+      Direction: row.Direction,
+      Sentence_ID: row.Sentence_ID,
+      Hallucination_Risk: number(row.Hallucination_Risk),
+      Omission_Risk: number(row.Omission_Risk),
+      Degeneration_Risk: number(row.Degeneration_Risk)
+    };
+  }
+
+  function loadSentenceCsv(url) {
+    return new Promise((resolve, reject) => {
+      const collected = [];
+      let processed = 0;
+
+      Papa.parse(url, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        chunkSize: 2 * 1024 * 1024,
+
+        chunk: results => {
+          for (const rawRow of results.data) {
+            const row = normalizeSentenceRow(rawRow);
+
+            if (row) {
+              collected.push(row);
+            }
+          }
+
+          processed += results.data.length;
+
+          setDistributionStatus(
+            "Φόρτωση δεδομένων ανά πρόταση: " +
+            processed.toLocaleString("el-GR") +
+            " εγγραφές…"
+          );
+        },
+
+        complete: () => resolve(collected),
+        error: error => reject(error)
+      });
+    });
+  }
+
+  function sentenceValues(direction, method, metric) {
+    return sentenceRows
+      .filter(row =>
+        row.Base_Model === modelSelect.value &&
+        row.Direction === direction &&
+        row.Quantization === method &&
+        Number.isFinite(row[metric])
+      )
+      .map(row => row[metric]);
+  }
+
+  function distributionCategory(direction, isFullModel) {
+    const directionLabel =
+      direction === "EN-GR" ? "EN→GR" : "GR→EN";
+
+    return directionLabel + "<br>" +
+      (isFullModel ? "Full Model" : "Επιλεγμένη");
+  }
+
+  function distributionPosition(direction, isFullModel) {
+    if (direction === "EN-GR") {
+      return isFullModel ? 0 : 1;
+    }
+
+    return isFullModel ? 2 : 3;
+  }
+
+  function distributionBoxTrace(
+    direction,
+    method,
+    isFullModel,
+    showLegend
+  ) {
+    const metric = comparisonMetricSelect.value;
+    const values = sentenceValues(
+      direction,
+      method,
+      metric
+    );
+
+    const position = distributionPosition(
+      direction,
+      isFullModel
+    );
+
+    return {
+      type: "box",
+      name: isFullModel
+        ? "Full Model"
+        : methodSelect.value,
+      x: Array(values.length).fill(position),
+      y: values,
+      width: 0.52,
+      boxpoints: false,
+      boxmean: false,
+      quartilemethod: "linear",
+      hoverinfo: "skip",
+      showlegend: showLegend,
+      legendgroup: isFullModel
+        ? "full-model"
+        : "selected-method",
+      fillcolor: isFullModel
+        ? "rgba(17, 24, 39, 0.16)"
+        : "rgba(52, 84, 209, 0.18)",
+      line: {
+        color: isFullModel
+          ? "#111827"
+          : "#3454d1",
+        width: 1.6
+      },
+      marker: {
+        color: isFullModel
+          ? "#111827"
+          : "#3454d1"
+      }
+    };
+  }
+
+  function distributionSummary(direction, method, isFullModel) {
+    const metric = comparisonMetricSelect.value;
+    const values = sentenceValues(
+      direction,
+      method,
+      metric
+    );
+
+    if (!values.length) {
+      return null;
+    }
+
+    const directionLabel =
+      direction === "EN-GR" ? "EN→GR" : "GR→EN";
+
+    return {
+      category: distributionCategory(
+        direction,
+        isFullModel
+      ),
+      position: distributionPosition(
+        direction,
+        isFullModel
+      ),
+      title:
+        directionLabel + " · " +
+        (
+          isFullModel
+            ? "Full Model"
+            : methodSelect.value
+        ),
+      median: quantile(values, 0.5),
+      q1: quantile(values, 0.25),
+      q3: quantile(values, 0.75)
+    };
+  }
+
+  function distributionHoverTrace() {
+    const summaries = [
+      distributionSummary(
+        "EN-GR",
+        "Full Model",
+        true
+      ),
+      distributionSummary(
+        "EN-GR",
+        methodSelect.value,
+        false
+      ),
+      distributionSummary(
+        "GR-EN",
+        "Full Model",
+        true
+      ),
+      distributionSummary(
+        "GR-EN",
+        methodSelect.value,
+        false
+      )
+    ].filter(Boolean);
+
+    return {
+      type: "bar",
+      name: "",
+      x: summaries.map(item => item.position),
+      base: summaries.map(item => item.q1),
+      y: summaries.map(item => item.q3 - item.q1),
+      width: summaries.map(() => 0.52),
+      customdata: summaries.map(item => [
+        item.title,
+        format(item.median),
+        format(item.q1),
+        format(item.q3)
+      ]),
+
+      // Transparent rectangle covering exactly the visible IQR box.
+      // It provides a stable hover area without adding a visible mark.
+      marker: {
+        color: "rgba(0, 0, 0, 0.001)",
+        line: {
+          color: "rgba(0, 0, 0, 0)",
+          width: 0
+        }
+      },
+
+      showlegend: false,
+      hovertemplate:
+        "<b>%{customdata[0]}</b><br>" +
+        "Διάμεση: %{customdata[1]}<br>" +
+        "Μεσαίο 50%: %{customdata[2]} – " +
+        "%{customdata[3]}" +
+        "<extra></extra>"
+    };
+  }
+
+  function renderSentenceDistribution() {
+    if (sentenceLoadError) {
+      setDistributionStatus(
+        "Δεν ήταν δυνατή η φόρτωση του " +
+        "<code>faithfulness_sentence_metrics.csv</code>.<br>" +
+        sentenceLoadError,
+        true
+      );
+      return;
+    }
+
+    if (!sentenceDataReady) {
+      return;
+    }
+
+    const metric = comparisonMetricSelect.value;
+    const container =
+      document.getElementById("sentence-distribution");
+
+    // Remove the loading/progress placeholder before Plotly renders.
+    Plotly.purge(container);
+    container.innerHTML = "";
+
+    Plotly.newPlot(container, [
+      distributionBoxTrace(
+        "EN-GR",
+        "Full Model",
+        true,
+        true
+      ),
+      distributionBoxTrace(
+        "EN-GR",
+        methodSelect.value,
+        false,
+        true
+      ),
+      distributionBoxTrace(
+        "GR-EN",
+        "Full Model",
+        true,
+        false
+      ),
+      distributionBoxTrace(
+        "GR-EN",
+        methodSelect.value,
+        false,
+        false
+      ),
+      distributionHoverTrace()
+    ], {
+      height: 520,
+      margin: {
+        l: 90,
+        r: 40,
+        t: 55,
+        b: 90
+      },
+      boxmode: "group",
+      barmode: "overlay",
+      legend: {
+        orientation: "h",
+        x: 0,
+        y: 1.12
+      },
+      xaxis: {
+        title: "Κατεύθυνση και σύστημα",
+        type: "linear",
+        range: [-0.65, 3.65],
+        tickmode: "array",
+        tickvals: [0, 1, 2, 3],
+        ticktext: [
+          "EN→GR<br>Full Model",
+          "EN→GR<br>Επιλεγμένη",
+          "GR→EN<br>Full Model",
+          "GR→EN<br>Επιλεγμένη"
+        ],
+        tickfont: {
+          size: 11
+        },
+        fixedrange: false
+      },
+      yaxis: {
+        title: COMPARISON_METRIC_LABELS[metric],
+        rangemode: "tozero",
+        tickformat: ".3~f",
+        showgrid: true
+      },
+      hovermode: "closest",
+      hoverlabel: {
+        align: "left"
+      },
+      paper_bgcolor: "#ffffff",
+      plot_bgcolor: "#ffffff"
+    }, {
+      responsive: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: [
+        "lasso2d",
+        "select2d"
+      ]
+    });
+  }
+
+  function render() {
+    updateSummary();
+    renderOverview();
+    renderBootstrap();
+    renderSentenceDistribution();
+  }
+
+  modelSelect.addEventListener("change", () => {
+    populateMethods();
+    render();
+  });
+
+  methodSelect.addEventListener("change", render);
+  riskGroupSelect.addEventListener(
+    "change",
+    renderOverview
+  );
+  comparisonMetricSelect.addEventListener(
+    "change",
+    renderSentenceDistribution
+  );
+
+  async function start() {
+    if (window.location.protocol === "file:") {
+      statusBox.style.display = "block";
+      statusBox.innerHTML =
+        "Η σελίδα πρέπει να ανοίξει μέσω server. " +
+        "Τρέξε <code>python -m http.server 8000</code> " +
+        "και άνοιξε <code>http://localhost:8000/</code>.";
+      return;
+    }
+
+    try {
+      const [systemData, bootstrapData] =
+        await Promise.all([
+          loadCsv(FILES.system),
+          loadCsv(FILES.bootstrap)
+        ]);
+
+      systemRows = normalizeSystem(systemData);
+      bootstrapRows = normalizeBootstrap(
+        bootstrapData
+      );
+
+      populateModels();
+      populateMethods();
+      render();
+
+      setTimeout(async () => {
+        try {
+          sentenceRows = await loadSentenceCsv(
+            FILES.sentences
+          );
+          sentenceDataReady = true;
+          renderSentenceDistribution();
+        } catch (error) {
+          sentenceLoadError =
+            error instanceof Error
+              ? error.message
+              : String(error);
+          renderSentenceDistribution();
+        }
+      }, 0);
+    } catch (error) {
+      statusBox.style.display = "block";
+      statusBox.innerHTML =
+        "Δεν ήταν δυνατή η φόρτωση των CSV. " +
+        "Βεβαιώσου ότι βρίσκονται στον ίδιο φάκελο " +
+        "με το HTML.<br><br>" +
+        String(error);
+    }
+  }
+
+  start();
+</script>
+</body>
+</html>

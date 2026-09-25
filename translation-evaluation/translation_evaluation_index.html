@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Αξιολόγηση Μετάφρασης</title>
+  <meta
+    name="description"
+    content="Κεντρική πλοήγηση στις οπτικοποιήσεις αξιολόγησης μετάφρασης και κβάντισης."
+  >
+
+  <style>
+    :root {
+      --background: #f4f6f9;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --text: #172033;
+      --muted: #667085;
+      --border: #e1e6ee;
+      --primary: #3454d1;
+      --primary-dark: #243b9b;
+      --header-start: #172033;
+      --header-end: #2b3a67;
+      --shadow: 0 8px 24px rgba(20, 32, 60, 0.07);
+      --radius: 15px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--background);
+      font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    header {
+      color: #ffffff;
+      background:
+        radial-gradient(
+          circle at 85% 20%,
+          rgba(116, 139, 255, 0.28),
+          transparent 34%
+        ),
+        linear-gradient(
+          120deg,
+          var(--header-start),
+          var(--header-end)
+        );
+    }
+
+    .header-inner {
+      width: min(1220px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 58px 0 50px;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin: 0;
+      font-size: clamp(2.15rem, 5vw, 3.7rem);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+    }
+
+    .subtitle {
+      max-width: 830px;
+      margin: 19px 0 0;
+      color: #d9e0f5;
+      font-size: clamp(1rem, 2vw, 1.12rem);
+      line-height: 1.65;
+    }
+
+    main {
+      width: min(1220px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 30px 0 58px;
+    }
+    .analysis-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .section-heading h2 {
+      margin: 0;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 20px;
+      margin: 31px 0 15px;
+    }
+
+    .section-heading p {
+      max-width: 650px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .analysis-card {
+      position: relative;
+      display: flex;
+      min-height: 310px;
+      flex-direction: column;
+      overflow: hidden;
+      transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        border-color 160ms ease;
+    }
+
+    .analysis-card:hover {
+      transform: translateY(-3px);
+      border-color: #c6d0ee;
+      box-shadow: 0 13px 32px rgba(20, 32, 60, 0.11);
+    }
+
+    .card-accent {
+      height: 6px;
+      background: var(--accent);
+    }
+
+    .card-content {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px;
+    }
+
+    .card-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--accent-dark);
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .step-circle {
+      display: inline-grid;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      color: #ffffff;
+      background: var(--accent);
+      border-radius: 50%;
+      font-size: 0.76rem;
+    }
+
+    .direction-tag {
+      padding: 5px 9px;
+      color: #475467;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .analysis-card h3 {
+      margin: 19px 0 0;
+      font-size: 1.35rem;
+      line-height: 1.25;
+    }
+
+    .analysis-card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.58;
+    }
+
+    .question {
+      margin-top: 16px;
+      padding: 12px 13px;
+      color: #344054;
+      background: var(--surface-soft);
+      border-left: 3px solid var(--accent);
+      border-radius: 7px;
+      font-size: 0.84rem;
+      line-height: 1.48;
+    }
+
+    .open-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      align-self: flex-start;
+      gap: 9px;
+      margin-top: auto;
+      padding: 10px 15px;
+      color: #ffffff;
+      background: var(--accent);
+      border-radius: 8px;
+      font-size: 0.86rem;
+      font-weight: 750;
+      text-decoration: none;
+      transition:
+        background 150ms ease,
+        transform 150ms ease;
+    }
+
+    .open-link:hover {
+      background: var(--accent-dark);
+      transform: translateX(2px);
+    }
+
+    .open-link:focus-visible {
+      outline: 3px solid rgba(52, 84, 209, 0.25);
+      outline-offset: 3px;
+    }
+
+    .path-note {
+      margin-top: 11px;
+      color: #98a2b3;
+      font-family:
+        "Cascadia Code",
+        "SFMono-Regular",
+        Consolas,
+        monospace;
+      font-size: 0.69rem;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .card-quant {
+      --accent: #3454d1;
+      --accent-dark: #243b9b;
+    }
+
+    .card-challenges {
+      --accent: #8b5cf6;
+      --accent-dark: #6d3fc7;
+    }
+
+    .card-morphology {
+      --accent: #0f8a83;
+      --accent-dark: #096b66;
+    }
+
+    .card-faithfulness {
+      --accent: #d65a31;
+      --accent-dark: #ad4323;
+    }
+
+    .closing-note {
+      margin-top: 22px;
+      padding: 17px 19px;
+      color: #344054;
+      background: #eef2ff;
+      border-left: 4px solid var(--primary);
+      border-radius: 10px;
+      line-height: 1.58;
+    }
+
+    footer {
+      padding: 24px 18px 34px;
+      color: #667085;
+      text-align: center;
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 880px) {
+      .analysis-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analysis-card {
+        min-height: 290px;
+      }
+    }
+
+    @media (max-width: 590px) {
+      .header-inner,
+      main {
+        width: min(100% - 22px, 1220px);
+      }
+
+      .header-inner {
+        padding: 42px 0 38px;
+      }
+
+      .card-content {
+        padding: 17px;
+      }
+
+      .section-heading {
+        align-items: start;
+        flex-direction: column;
+      }
+
+      .analysis-card {
+        min-height: 0;
+      }
+
+      .open-link {
+        margin-top: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="header-inner">
+    
+    <h1>Αξιολόγηση Μετάφρασης και Επίδραση της Κβάντισης</h1>
+	
+  </div>
+</header>
+
+<main>
+
+  <div class="section-heading">
+    <div>
+      <h2>Οπτικοποιήσεις αξιολόγησης</h2>
+    </div>
+  </div>
+
+  <section class="analysis-grid" aria-label="Οπτικοποιήσεις">
+    <article class="analysis-card card-quant">
+      <div class="card-accent"></div>
+
+      <div class="card-content">
+        <div class="card-topline">
+          <div class="step-badge">
+            <span class="step-circle">1</span>
+            Συνολική εικόνα
+          </div>
+        </div>
+
+        <h3>Απόδοση μοντέλων και κβάντισης</h3>
+
+        <p>
+          Σύγκριση Full Model και μεθόδων κβάντισης ως προς ποιότητα,
+          μεταβολή μετρικών, ταχύτητα και χρήση υπολογιστικών πόρων.
+        </p>
+
+        <div class="question">
+          <strong>Βασικό ερώτημα:</strong>
+          Πόσο επηρεάζει η κβάντιση τη συνολική μεταφραστική απόδοση
+          και ποιο είναι το πρακτικό όφελος σε χρόνο και μνήμη;
+        </div>
+
+        <a
+          class="open-link"
+          href="./model-quants-analysis/quant_delta_visualization.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Άνοιγμα
+        </a>
+
+        <div class="path-note">
+          https://evankost.github.io/quantization-performance-dashboard/model-quants-analysis/quant_delta_visualization.html
+        </div>
+      </div>
+    </article>
+
+    <article class="analysis-card card-challenges">
+      <div class="card-accent"></div>
+
+      <div class="card-content">
+        <div class="card-topline">
+          <div class="step-badge">
+            <span class="step-circle">2</span>
+            Διαγνωστική ανάλυση
+          </div>
+        </div>
+
+        <h3>Γλωσσικές προκλήσεις</h3>
+
+        <p>
+          Ανάλυση της επίδρασης της κβάντισης ανά κατηγορία και
+          συγκεκριμένη γλωσσική πρόκληση.
+        </p>
+
+        <div class="question">
+          <strong>Βασικό ερώτημα:</strong>
+          Σε ποιες γλωσσικές κατηγορίες και φαινόμενα εμφανίζονται οι
+          μεγαλύτερες πρόσθετες απώλειες;
+        </div>
+
+        <a
+          class="open-link"
+          href="./linguistic-challenges-analysis/linguistic_challenges_visualization.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Άνοιγμα
+        </a>
+
+        <div class="path-note">
+          https://evankost.github.io/quantization-performance-dashboard/linguistic-challenges-analysis/linguistic_challenges_visualization.html
+        </div>
+      </div>
+    </article>
+
+    <article class="analysis-card card-morphology">
+      <div class="card-accent"></div>
+
+      <div class="card-content">
+        <div class="card-topline">
+          <div class="step-badge">
+            <span class="step-circle">3</span>
+            Μορφοσύνταξη
+          </div>
+        </div>
+
+        <h3>Μορφολογική και μορφοσυντακτική ανάλυση</h3>
+
+        <p>
+          Εξέταση γραμματικής συμφωνίας, δομικής απόδοσης και
+          διατήρησης μορφολογικών χαρακτηριστικών στις δύο
+          κατευθύνσεις μετάφρασης.
+        </p>
+
+        <div class="question">
+          <strong>Βασικό ερώτημα:</strong>
+          Ποιες μορφολογικές και μορφοσυντακτικές δομές είναι πιο
+          ευαίσθητες στη μείωση ακρίβειας των βαρών;
+        </div>
+
+        <a
+          class="open-link"
+          href="./morphology-analysis/morphosyntax_visualization.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Άνοιγμα
+        </a>
+
+        <div class="path-note">
+          https://evankost.github.io/quantization-performance-dashboard/morphology-analysis/morphosyntax_visualization.html
+        </div>
+      </div>
+    </article>
+
+    <article class="analysis-card card-faithfulness">
+      <div class="card-accent"></div>
+
+      <div class="card-content">
+        <div class="card-topline">
+          <div class="step-badge">
+            <span class="step-circle">4</span>
+            Ποιοτική ασφάλεια
+          </div>
+        </div>
+
+        <h3>Ανάλυση πιστότητας μετάφρασης</h3>
+
+        <p>
+          Ανάλυση της επίδρασης της κβάντισης στην πιστότητα της μετάφρασης, με έμφαση σε προσθήκες, παραλείψεις, επαναλήψεις και αποκλίσεις από το περιεχόμενο του αρχικού κειμένου.
+        </p>
+
+        <div class="question">
+          <strong>Βασικό ερώτημα:</strong>
+          Σε ποιο βαθμό η κβάντιση επηρεάζει την πιστότητα της μετάφρασης και κατά πόσο οι διαφορές από το Full Model είναι στατιστικά αξιόπιστες;
+        </div>
+
+        <a
+          class="open-link"
+          href="./faithfulness-analysis/faithfulness_visualization.html"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Άνοιγμα    
+        </a>
+
+        <div class="path-note">
+          https://evankost.github.io/quantization-performance-dashboard/faithfulness-analysis/faithfulness_visualization.html
+        </div>
+      </div>
+    </article>
+  </section>
+
+</main>
+
+<footer>
+  Αξιολόγηση Μετάφρασης · Οπτικοποιήσεις Αποτελεσμάτων
+</footer>
+</body>
+</html>
